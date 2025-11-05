@@ -82,7 +82,7 @@ export default function SettingsPanel({
             <div>
               <label className="text-sm font-medium text-slate-700 block mb-1">Name</label>
               <input
-                value={local.name}
+                value={local.name ?? ""}
                 onChange={(e) => setLocal({ ...local, name: e.target.value })}
                 placeholder="Enter field name"
                 className="w-full border rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-blue-300"
@@ -92,7 +92,7 @@ export default function SettingsPanel({
             <div>
               <label className="text-sm font-medium text-slate-700 block mb-1">API ID</label>
               <input
-                value={local.apiId}
+                value={local.apiId ?? ""}
                 disabled
                 placeholder="Generated automatically"
                 className="w-full border rounded-md px-3 py-2 bg-gray-50 text-sm text-slate-500"

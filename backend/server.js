@@ -16,6 +16,9 @@ import plansRoutes from "./routes/plans.js";
 import subscriptionsRoutes from "./routes/subscriptions.js";
 import paymentsRoutes from "./routes/payments.js";
 import paymentMethodRoutes from "./routes/paymentMethods.js";
+import contentBuilderRoutes from "./routes/contentBuilder.js";
+import contentRoutes from "./routes/content.js";
+import mediaRoutes from "./routes/media.js";
 
 dotenv.config(); 
 
@@ -40,6 +43,9 @@ app.use("/api/plans", plansRoutes);
 app.use("/api/subscriptions", subscriptionsRoutes);
 app.use("/api/payments", paymentsRoutes);
 app.use("/api/paymentMethods", paymentMethodRoutes);
+app.use("/api/content-builder", contentBuilderRoutes);
+app.use("/api/content", contentRoutes);
+app.use("/api/media", mediaRoutes);
 
 // test
 app.get("/", (req, res) => {

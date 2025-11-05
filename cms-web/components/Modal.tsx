@@ -3,10 +3,12 @@
 import { useRouter } from "next/navigation";
 import { FiX } from "react-icons/fi";
 import { useState } from "react";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
 
 export default function PageModal({
   title,
-  type, // ✅ tambahan: menentukan jenis halaman
+  type,
   onClose,
 }: {
   title: string;
@@ -18,17 +20,61 @@ export default function PageModal({
   const [multiLang, setMultiLang] = useState(false);
   const [seo, setSeo] = useState(false);
   const [workflow, setWorkflow] = useState(false);
+  const [pageName, setPageName] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleCreate = () => {
-    onClose();
+  const handleCreate = async () => {
+    if (!pageName.trim()) {
+      Swal.fire("Error", "Please enter a page name", "error");
+      return;
+    }
 
-    // ✅ Arahkan sesuai type yang dikirim dari halaman
-    if (type === "multi") {
-      router.push("/content-builder/multi-page/home");
-    } else if (type === "component") {
-      router.push("/content-builder/component/home");
-    } else {
-      router.push("/content-builder/single-page/home");
+    setLoading(true);
+
+    try {
+      // 🔹 1. Kirim request ke backend
+      const res = await fetch("http://localhost:4000/api/content-builder/model", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: pageName,
+          type, // "single", "multi", atau "component"
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        Swal.fire("Error", data.message || "Failed to create page", "error");
+        setLoading(false);
+        return; 
+      }
+
+      Swal.fire({
+        icon: "success",
+        title: "Success!",
+        text: "New page has been created successfully 🎉",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      onClose();
+
+      // 🔹 2. Redirect sesuai type
+      setTimeout(() => {
+        if (type === "multi") {
+          router.push(`/content-builder/multi-page/${data.model.slug}`);
+        } else if (type === "component") {
+          router.push(`/content-builder/component/${data.model.slug}`);
+        } else {
+          router.push(`/content-builder/single-page/${data.model.slug}`);
+        }
+      }, 1000);
+    } catch (err) {
+      Swal.fire("Error", "Server error, please try again.", "error");
+      console.error("createPage error:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -48,13 +94,13 @@ export default function PageModal({
           <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
         </div>
 
-        {/* Tab */}
+        {/* Tabs */}
         <div className="flex justify-center border-b">
           <button
             onClick={() => setActiveTab("basic")}
             className={`px-6 py-2.5 font-medium text-sm rounded-t-lg ${activeTab === "basic"
-                ? "bg-blue-600 text-white shadow"
-                : "text-slate-800 hover:bg-slate-100"
+              ? "bg-blue-600 text-white shadow"
+              : "text-slate-800 hover:bg-slate-100"
               }`}
           >
             Basic Configuration
@@ -62,8 +108,8 @@ export default function PageModal({
           <button
             onClick={() => setActiveTab("advanced")}
             className={`px-6 py-2.5 font-medium text-sm rounded-t-lg ${activeTab === "advanced"
-                ? "bg-blue-600 text-white shadow"
-                : "text-slate-800 hover:bg-slate-100"
+              ? "bg-blue-600 text-white shadow"
+              : "text-slate-800 hover:bg-slate-100"
               }`}
           >
             Advanced Configuration
@@ -81,17 +127,23 @@ export default function PageModal({
                 <input
                   type="text"
                   placeholder="Enter page name"
+                  value={pageName}
+                  onChange={(e) => setPageName(e.target.value)}
                   className="w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-400 outline-none"
                 />
               </div>
               <div>
                 <label className="block font-medium text-slate-700 mb-1">
-                  API 
+                  API Endpoint
                 </label>
                 <input
                   type="text"
                   disabled
-                  placeholder="This will be automatically generated."
+                  value={
+                    pageName
+                      ? `/api/content/${pageName.toLowerCase().replace(/\s+/g, "-")}`
+                      : "This will be automatically generated."
+                  }
                   className="w-full border rounded-md px-3 py-2 bg-gray-50 text-gray-500 outline-none"
                 />
               </div>
@@ -100,19 +152,19 @@ export default function PageModal({
             <>
               <Toggle
                 label="Multi Language"
-                desc="Enable this feature to make the page support multiple languages. When activated can be displayed in different languages based user preference."
+                desc="Enable multilingual support for this page."
                 checked={multiLang}
                 onChange={() => setMultiLang(!multiLang)}
               />
               <Toggle
                 label="SEO"
-                desc="Enable this feature to activate SEO settings this page. When turned on, you can optimize the page content for search engines eim coach results."
+                desc="Enable SEO optimization options for this page."
                 checked={seo}
                 onChange={() => setSeo(!seo)}
               />
               <Toggle
                 label="Workflow"
-                desc="Enable this feature to activate automated workflows for user interaction. When turned on, the turned will automatically implement a structclere visibility in search results."
+                desc="Enable workflow automation for this page."
                 checked={workflow}
                 onChange={() => setWorkflow(!workflow)}
               />
@@ -124,9 +176,11 @@ export default function PageModal({
         <div className="p-5 border-t">
           <button
             onClick={handleCreate}
-            className="w-full bg-blue-600 text-white font-semibold py-2.5 rounded-md hover:bg-blue-700 transition"
+            disabled={loading}
+            className={`w-full bg-blue-600 text-white font-semibold py-2.5 rounded-md transition ${loading ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700"
+              }`}
           >
-            Create
+            {loading ? "Creating..." : "Create"}
           </button>
         </div>
       </div>
@@ -134,6 +188,7 @@ export default function PageModal({
   );
 }
 
+/* Komponen Toggle */
 function Toggle({
   label,
   desc,

@@ -36,7 +36,6 @@ export default function Sidebar() {
       }
     }
 
-    // Selalu buka dropdown jika masih di dalam content-builder (termasuk /home, /edit, dst)
     if (pathname.startsWith("/content-builder")) {
       setBuilderOpen(true);
     } else {
@@ -106,7 +105,6 @@ export default function Sidebar() {
               onClick={() => setBuilderOpen(!builderOpen)}
               className={clsx(
                 "flex items-center justify-between gap-3 px-3 py-2 rounded-lg w-full transition-all duration-200",
-                // Tetap aktif kalau di halaman /content-builder atau anak-anaknya
                 pathname.startsWith("/content-builder")
                   ? "bg-blue-100/30 text-blue-600 font-semibold"
                   : "text-slate-600 hover:bg-gray-50 hover:text-slate-600"

@@ -34,28 +34,20 @@ export default function Topbar() {
   const [hasUnread, setHasUnread] = useState(true);
 
   const getPageTitle = () => {
-    if (pathname === "/dashboard") return "Dashboard";
-    else if (pathname === "/projects") return "Projects";
-    else if (pathname === "/projects/detail-projects") return "Projects / Detail Projects";
-    else if (pathname === "/content") return "Content Management";
-    else if (pathname === "/content-builder") return "Content Builder";
-    else if (pathname === "/content-builder/single-page") return "Content Builder / Single Page";
-    else if (pathname === "/content-builder/single-page/home") return "Content Builder / Single Page / Home";
-    else if (pathname === "/content-builder/multi-page") return "Content Builder / Multi Page";
-    else if (pathname === "/content-builder/multi-page/home") return "Content Builder / Multi Page / Home";
-    else if (pathname === "/content-builder/component") return "Content Builder / Component";
-    else if (pathname === "/content-builder/component/home") return "Content Builder / Component / Home";
-    else if (pathname === "/media-library") return "Media Library";
-    else if (pathname === "/seo-dashboard") return "SEO Dashboard";
-    else if (pathname === "/collaborators") return "Collaborators";
-    else if (pathname === "/user-management") return "User Management";
-    else if (pathname === "/roles-permissions") return "Roles & Permissions";
-    else if (pathname === "/settings") return "Settings";
-    else if (pathname === "/settings/new") return "Settings / New API Token";
-    else if (pathname === "/profile") return "Profile";
-    else if (pathname === "/plan-billing") return "Plan and Billing";
-    else if (pathname === "/payment") return "Payment";
-    else return "Dashboard";
+    if (!pathname) return "Dashboard";
+
+    // Ambil bagian path setelah tanda '/'
+    const parts = pathname
+      .split("/")
+      .filter((p) => p && p.trim() !== "") // hapus kosong
+      .map((p) =>
+        p
+          .replace(/-/g, " ") // ganti "-" dengan spasi
+          .replace(/\b\w/g, (c) => c.toUpperCase()) // kapital tiap kata
+      );
+
+    // Gabungkan jadi breadcrumb style
+    return parts.join(" / ") || "Dashboard";
   };
 
   // ===== Ambil profil user dari API =====
@@ -182,8 +174,6 @@ export default function Topbar() {
       <h1 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
         {(() => {
           const title = getPageTitle();
-
-          // Pisahkan berdasarkan " / " → ["Content Builder", "Single Page", "Home"]
           const parts = title.split(" / ");
 
           return parts.map((part, i) => (
@@ -191,7 +181,6 @@ export default function Topbar() {
               {i > 0 && <span className="text-slate-400">/</span>}
               <span
                 onClick={() => {
-                  // Kalau bukan bagian terakhir → arahkan sesuai path
                   if (i < parts.length - 1) {
                     const targetPath =
                       "/" +
