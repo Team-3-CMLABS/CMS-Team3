@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FiChevronDown, FiChevronUp } from "react-icons/fi";
+import { motion, AnimatePresence } from "framer-motion";
+import { FiChevronLeft, FiSettings } from "react-icons/fi";
+import Swal from "sweetalert2";
 
 type FieldConfig = {
   id: number | null;
@@ -23,185 +25,227 @@ export default function SettingsPanel({
   onClose: () => void;
   onSave: (cfg: FieldConfig) => void;
 }) {
-  // local form state (karena ingin edit tanpa langsung commit)
-  const [local, setLocal] = useState<FieldConfig>({
-    id: null,
-    name: "",
-    apiId: "",
-    multiLang: false,
-    seo: false,
-    workflow: false,
-  });
-
-  // accordion state
-  const [basicOpen, setBasicOpen] = useState(true);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [local, setLocal] = useState<FieldConfig>(
+    field || {
+      id: null,
+      name: "",
+      apiId: "",
+      multiLang: false,
+      seo: false,
+      workflow: false,
+    }
+  );
 
   useEffect(() => {
-    if (field) {
-      setLocal(field);
-    } else {
-      setLocal({
-        id: null,
-        name: "",
-        apiId: "",
-        multiLang: false,
-        seo: false,
-        workflow: false,
-      });
-    }
+    if (!field?.id) return;
+
+    const fetchLatest = async () => {
+      try {
+        const res = await fetch(`http://localhost:4000/api/content-builder/model/${field.id}`);
+        const data = await res.json();
+
+        if (data.model) {
+          setLocal({
+            id: data.model.id,
+            name: data.model.name,
+            apiId: data.model.slug,
+            multiLang: !!data.model.multiLang,
+            seo: !!data.model.seo,
+            workflow: !!data.model.workflow,
+          });
+        }
+      } catch (err) {
+        console.error("Gagal ambil data model:", err);
+      }
+    };
+
+    fetchLatest();
   }, [field]);
 
-  const handleSave = () => {
-    onSave(local);
+  const handleSave = async () => {
+    try {
+      const payload = {
+        ...local,
+        slug: local.apiId || local.name.toLowerCase().replace(/\s+/g, "-"),
+      };
+
+      await fetch(`http://localhost:4000/api/content-builder/model/${local.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      Swal.fire("Success", "Configuration updated!", "success");
+      onSave(local);
+    } catch (err) {
+      console.error(err);
+      Swal.fire("Error", "Failed to save settings", "error");
+    }
   };
 
-  if (!open) return null;
-
   return (
-    <aside className="w-80 bg-white border-l border-slate-200 p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-slate-700">Setting Configuration</h3>
-        <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-          ✕
-        </button>
-      </div>
-
-      {/* Basic Accordion */}
-      <div className="mb-3 border rounded-lg overflow-hidden">
-        <button
-          onClick={() => setBasicOpen(!basicOpen)}
-          className="w-full flex items-center justify-between px-4 py-3 bg-slate-50"
+    <AnimatePresence>
+      {open && (
+        <motion.aside
+          key="settingsPanel"
+          initial={{ x: "100%" }}
+          animate={{ x: 0 }}
+          exit={{ x: "100%" }}
+          transition={{ type: "spring", stiffness: 100, damping: 18 }}
+          className="fixed top-16 right-0 w-[380px] h-[calc(100vh-4rem)] bg-white border-l border-slate-200 shadow-2xl z-[50] flex flex-col rounded-tl-xl"
         >
-          <span className="font-medium text-slate-700">Basic Configuration</span>
-          {basicOpen ? <FiChevronUp /> : <FiChevronDown />}
-        </button>
+          {/* Header */}
+          <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4 bg-white">
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-slate-600 transition"
+              title="Close panel"
+            >
+              <FiChevronLeft size={22} />
+            </button>
+            <FiSettings className="text-slate-600" size={18} />
+            <h3 className="font-semibold text-lg text-slate-800">
+              Setting Configuration
+            </h3>
+          </div>
 
-        {basicOpen && (
-          <div className="p-4 space-y-4">
-            <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1">Name</label>
-              <input
-                value={local.name ?? ""}
-                onChange={(e) => setLocal({ ...local, name: e.target.value })}
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto p-6 pb-28 space-y-6 bg-gray-50">
+            {/* Basic Configuration */}
+            <section className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+              <h4 className="font-semibold text-slate-800 mb-2">
+                Basic Configuration
+              </h4>
+
+              <InputField
+                label="Name"
+                value={local.name}
+                onChange={(e: any) =>
+                  setLocal({ ...local, name: e.target.value })
+                }
                 placeholder="Enter field name"
-                className="w-full border rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-blue-300"
               />
-            </div>
 
-            <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1">API ID</label>
-              <input
-                value={local.apiId ?? ""}
+              <InputField
+                label="API ID"
+                value={local.apiId}
                 disabled
-                placeholder="Generated automatically"
-                className="w-full border rounded-md px-3 py-2 bg-gray-50 text-sm text-slate-500"
+                note="Generated automatically"
               />
-              <p className="text-xs text-slate-400 mt-1">
-                API ID is generated automatically and used for API routes.
+
+              <p className="text-xs text-slate-400">
+                It’s generated automatically and used to generate API routes.
               </p>
-            </div>
 
-            {/* Tambahan teks deskripsi dan checkbox */}
-            <p className="text-xs text-slate-500 mt-1">
-              It’s generated automatically and used to generate API routes
-            </p>
+              <Checkbox
+                label="Required"
+                desc="Field must be filled before saving. Empty entries will be rejected."
+              />
+              <Checkbox
+                label="Unique"
+                desc="Duplicate entries are not allowed. Value must be unique across all records."
+              />
+            </section>
 
-            <div className="mt-2 space-y-2">
-              <label className="flex items-start gap-2 text-sm text-slate-600">
-                <input type="checkbox" className="mt-1" />
-                <span>
-                  <span className="font-medium">Required</span>
-                  <br />
-                  <span className="text-xs text-slate-500">
-                    Field must be filled before saving. Empty entries will be rejected.
-                  </span>
-                </span>
-              </label>
+            {/* Advanced Configuration */}
+            <section className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-5">
+              <h4 className="font-semibold text-slate-800 mb-2">
+                Advanced Configuration
+              </h4>
 
-              <label className="flex items-start gap-2 text-sm text-slate-600">
-                <input type="checkbox" className="mt-1" />
-                <span>
-                  <span className="font-medium">Unique</span>
-                  <br />
-                  <span className="text-xs text-slate-500">
-                    Duplicate entries are not allowed. Value must be unique across all records.
-                  </span>
-                </span>
-              </label>
-            </div>
+              <Toggle
+                title="Multi Language"
+                desc="Enable this feature to make the page support multiple languages."
+                checked={local.multiLang}
+                onChange={() =>
+                  setLocal({ ...local, multiLang: !local.multiLang })
+                }
+              />
+              <Toggle
+                title="SEO"
+                desc="Enable this feature to activate SEO settings."
+                checked={local.seo}
+                onChange={() => setLocal({ ...local, seo: !local.seo })}
+              />
+              <Toggle
+                title="Workflow"
+                desc="Enable this feature to activate automated workflows."
+                checked={local.workflow}
+                onChange={() =>
+                  setLocal({ ...local, workflow: !local.workflow })
+                }
+              />
+            </section>
           </div>
-        )}
-      </div>
 
-      {/* Advanced Accordion */}
-      <div className="mb-4 border rounded-lg overflow-hidden">
-        <button
-          onClick={() => setAdvancedOpen(!advancedOpen)}
-          className="w-full flex items-center justify-between px-4 py-3 bg-slate-50"
-        >
-          <span className="font-medium text-slate-700">Advanced Configuration</span>
-          {advancedOpen ? <FiChevronUp /> : <FiChevronDown />}
-        </button>
-
-        {advancedOpen && (
-          <div className="p-4 space-y-4">
-            <Toggle
-              title="Multi Language"
-              desc="Enable this feature to make the page support multiple languages. When activated can be displayed in different languages based user preference."
-              checked={local.multiLang}
-              onChange={() => setLocal({ ...local, multiLang: !local.multiLang })}
-            />
-            <Toggle
-              title="SEO"
-              desc="Enable this feature to activate SEO settings this page. When turned on, you can optimize the page content for search engines eim coach results."
-              checked={local.seo}
-              onChange={() => setLocal({ ...local, seo: !local.seo })}
-            />
-            <Toggle
-              title="Workflow"
-              desc="Enable this feature to activate automated workflows for user interaction. When turned on, the turned will automatically implement a structclere visibility in search results."
-              checked={local.workflow}
-              onChange={() => setLocal({ ...local, workflow: !local.workflow })}
-            />
+          {/* Save Button */}
+          <div className="border-t border-slate-200 bg-white p-4 sticky bottom-0 shadow-lg flex justify-end">
+            <button
+              onClick={handleSave}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition"
+            >
+              Save Configuration
+            </button>
           </div>
-        )}
-      </div>
-
-      <div className="mt-6">
-        <button
-          onClick={handleSave}
-          className="w-full bg-blue-600 text-white py-2.5 rounded-md font-semibold hover:bg-blue-700"
-        >
-          Save Configurations
-        </button>
-      </div>
-    </aside>
+        </motion.aside>
+      )}
+    </AnimatePresence>
   );
 }
 
-/* small toggle component */
-function Toggle({
-  title,
-  desc,
-  checked,
-  onChange,
-}: {
-  title: string;
-  desc: string;
-  checked: boolean;
-  onChange: () => void;
-}) {
+/* ===== Small Components ===== */
+
+function InputField({ label, value, onChange, disabled, placeholder, note }: any) {
   return (
-    <div className="flex items-start justify-between">
+    <div>
+      <label className="text-sm font-medium text-slate-700 block mb-1">
+        {label}
+      </label>
+      <input
+        type="text"
+        value={value}
+        disabled={disabled}
+        placeholder={placeholder}
+        onChange={onChange}
+        className={`w-full border rounded-lg px-3 py-2 text-sm ${disabled
+          ? "bg-gray-100 text-slate-400"
+          : "focus:ring-2 focus:ring-blue-300"
+          }`}
+      />
+      {note && <p className="text-xs text-slate-400 mt-1">{note}</p>}
+    </div>
+  );
+}
+
+function Checkbox({ label, desc }: any) {
+  return (
+    <label className="flex items-start gap-2 text-sm text-slate-600 cursor-pointer">
+      <input type="checkbox" className="mt-1 accent-blue-600" />
+      <span>
+        <span className="font-medium">{label}</span>
+        <br />
+        <span className="text-xs text-slate-500">{desc}</span>
+      </span>
+    </label>
+  );
+}
+
+function Toggle({ title, desc, checked, onChange }: any) {
+  return (
+    <div className="flex items-start justify-between gap-3">
       <div className="max-w-[75%]">
-        <div className="font-medium text-slate-800">{title}</div>
-        <div className="text-xs text-slate-500">{desc}</div>
+        <p className="font-medium text-slate-800">{title}</p>
+        <p className="text-xs text-slate-500 leading-snug">{desc}</p>
       </div>
-      <label className="relative inline-flex items-center cursor-pointer ml-2">
-        <input className="sr-only" type="checkbox" checked={checked} onChange={onChange} />
-        <div className={`w-10 h-5 rounded-full ${checked ? "bg-blue-600" : "bg-gray-300"}`}></div>
-        <span className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${checked ? "translate-x-5" : "translate-x-0"}`}></span>
+      <label className="relative inline-flex items-center cursor-pointer">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onChange}
+          className="sr-only peer"
+        />
+        <div className="w-10 h-5 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition" />
+        <span className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5" />
       </label>
     </div>
   );

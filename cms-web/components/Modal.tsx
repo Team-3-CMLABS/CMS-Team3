@@ -39,6 +39,9 @@ export default function PageModal({
         body: JSON.stringify({
           name: pageName,
           type, // "single", "multi", atau "component"
+          multiLang,
+          seo,
+          workflow,
         }),
       });
 
@@ -47,7 +50,7 @@ export default function PageModal({
       if (!res.ok) {
         Swal.fire("Error", data.message || "Failed to create page", "error");
         setLoading(false);
-        return; 
+        return;
       }
 
       Swal.fire({

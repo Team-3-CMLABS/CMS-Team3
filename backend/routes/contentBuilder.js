@@ -1,6 +1,7 @@
 import express from "express";
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
+import jwt from "jsonwebtoken";
 dotenv.config();
 
 const router = express.Router();
@@ -15,52 +16,180 @@ const pool = mysql.createPool({
     queueLimit: 0,
 });
 
-// 🧩 CREATE MODEL
-router.post("/model", async (req, res) => {
+export const verifyToken = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "Token tidak ditemukan" });
+    }
+
+    const token = authHeader.split(" ")[1];
     try {
-        const { name, type } = req.body;
-        if (!name || !type)
-            return res.status(400).json({ message: "Name dan type wajib diisi" });
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded; // simpan { id, email, role }
+        next();
+    } catch (err) {
+        return res.status(403).json({ message: "Token tidak valid" });
+    }
+};
+
+// 🧩 GET ALL MODELS + CONTENT (FILTER BY ROLE)
+router.get("/", verifyToken, async (req, res) => {
+    try {
+        const { role, email } = req.user;
+        const { type } = req.query;
+
+        let query = `
+      SELECT 
+        m.id,
+        m.name AS model,
+        m.slug,
+        m.type,
+        m.api_endpoint,
+        m.editor_email AS model_editor,   
+        c.id AS content_id,
+        c.status,
+        c.editor_email AS content_editor, 
+        c.created_at
+      FROM content_models m
+      LEFT JOIN contents c ON c.model_id = m.id
+    `;
+
+        let params = [];
+
+        if (type) {
+            query += " AND m.type = ?";
+            params.push(type);
+        }
+
+        // 🔹 Role filter
+        if (role === "editor") {
+            query += `
+        WHERE 
+          m.editor_email = ? 
+          OR c.editor_email = ?
+      `;
+            params.push(email, email);
+        }
+
+        query += " ORDER BY m.created_at DESC";
+
+        const [rows] = await pool.query(query, params);
+
+        // 🧩 Format biar FE gampang pakai
+        const formatted = rows.map((r) => ({
+            id: r.id,
+            model: r.model,
+            slug: r.slug,
+            type: r.type,
+            api_endpoint: r.api_endpoint,
+            status: r.status || "draft",
+            editor_email: r.model_editor || r.content_editor || null,
+            created_at: r.created_at,
+        }));
+
+        res.json({ contents: formatted });
+    } catch (err) {
+        console.error("getAllModels error:", err);
+        res.status(500).json({ message: "Gagal mengambil data model" });
+    }
+});
+
+// 🧩 CREATE MODEL
+router.post("/model", verifyToken, async (req, res) => {
+    try {
+        const { name, type, multiLang = false, seo = false, workflow = false } = req.body;
+        const editorEmail = req.user.email; // 🧩 ambil dari token login
 
         const slug = name.toLowerCase().replace(/\s+/g, "-");
         const apiEndpoint = `/api/content/${slug}`;
 
-        // 🔍 Cek duplikat slug
-        const [check] = await pool.query(
-            "SELECT id FROM content_models WHERE slug = ?",
-            [slug]
-        );
-        if (check.length > 0) {
-            return res
-                .status(400)
-                .json({ message: `Model "${name}" sudah ada. Gunakan nama lain.` });
-        }
+        const [check] = await pool.query("SELECT id FROM content_models WHERE slug = ?", [slug]);
+        if (check.length > 0)
+            return res.status(400).json({ message: `Model "${name}" sudah ada.` });
 
-        // lanjut insert kalau aman
         const [result] = await pool.query(
-            `INSERT INTO content_models (name, slug, type, api_endpoint, created_at)
-       VALUES (?, ?, ?, ?, NOW())`,
-            [name, slug, type, apiEndpoint]
+            `INSERT INTO content_models 
+       (name, slug, type, api_endpoint, multiLang, seo, workflow, editor_email, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+            [name, slug, type, apiEndpoint, multiLang ? 1 : 0, seo ? 1 : 0, workflow ? 1 : 0, editorEmail]
         );
 
-        const modelId = result.insertId;
-
-        // Tambahkan default fields dan konten seperti sebelumnya...
         res.status(201).json({
             message: "Content model berhasil dibuat",
             model: {
-                id: modelId,
+                id: result.insertId,
                 name,
                 slug,
                 type,
                 api_endpoint: apiEndpoint,
+                editor_email: editorEmail,
             },
         });
     } catch (err) {
         console.error("createModel error:", err);
-        res.status(500).json({
-            message: err.message || "Gagal membuat model",
-        });
+        res.status(500).json({ message: "Gagal membuat model" });
+    }
+});
+
+// 🧩 UPDATE MODEL (konfigurasi)
+router.put("/model/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, type, multiLang, seo, workflow } = req.body;
+
+        // 🔁 Generate otomatis kalau tidak dikirim dari FE
+        const slug = name ? name.toLowerCase().replace(/\s+/g, "-") : null;
+        const apiEndpoint = slug ? `/api/content/${slug}` : null;
+
+        // 🔍 Ambil data lama dulu supaya kalau field kosong, tetap pakai nilai lama
+        const [rows] = await pool.query("SELECT * FROM content_models WHERE id = ?", [id]);
+        if (rows.length === 0) {
+            return res.status(404).json({ message: "Model tidak ditemukan" });
+        }
+        const old = rows[0];
+
+        const finalName = name || old.name;
+        const finalSlug = slug || old.slug;
+        const finalType = type || old.type;
+        const finalApi = apiEndpoint || old.api_endpoint;
+
+        // 🧩 Update ke DB
+        await pool.query(
+            `UPDATE content_models 
+       SET name = ?, slug = ?, type = ?, api_endpoint = ?, 
+           multiLang = ?, seo = ?, workflow = ? 
+       WHERE id = ?`,
+            [
+                finalName,
+                finalSlug,
+                finalType,
+                finalApi,
+                multiLang ? 1 : 0,
+                seo ? 1 : 0,
+                workflow ? 1 : 0,
+                id,
+            ]
+        );
+
+        res.json({ message: "Model updated successfully" });
+    } catch (err) {
+        console.error("updateModel error:", err);
+        res.status(500).json({ message: "Gagal memperbarui model" });
+    }
+});
+
+// DELETE MODEL
+router.delete("/model/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const [result] = await pool.query("DELETE FROM content_models WHERE id = ?", [id]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Model tidak ditemukan" });
+        }
+        res.json({ message: "Model berhasil dihapus" });
+    } catch (err) {
+        console.error("deleteModel error:", err);
+        res.status(500).json({ message: "Gagal menghapus model" });
     }
 });
 
@@ -117,39 +246,123 @@ router.delete("/field/:id", async (req, res) => {
     }
 });
 
-// 🧩 UPDATE MODEL (konfigurasi)
-// PUT /model/:id
-router.put("/model/:id", async (req, res) => {
+// 🧩 GET FIELD BY ID
+router.get("/field/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, slug, type, api_endpoint } = req.body;
+        const [rows] = await pool.query("SELECT * FROM content_fields WHERE id = ?", [id]);
 
-        await pool.query(
-            `UPDATE content_models 
-       SET name = ?, slug = ?, type = ?, api_endpoint = ? 
-       WHERE id = ?`,
-            [name, slug, type, api_endpoint, id]
-        );
+        if (rows.length === 0)
+            return res.status(404).json({ message: "Field tidak ditemukan" });
 
-        res.json({ message: "Model updated successfully" });
+        res.json({ field: rows[0] });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Gagal memperbarui model" });
+        console.error("getFieldById error:", err);
+        res.status(500).json({ message: "Gagal mengambil data field" });
     }
 });
 
-// DELETE MODEL
-router.delete("/model/:id", async (req, res) => {
+// 🧩 UPDATE FIELD
+router.put("/field/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        const [result] = await pool.query("DELETE FROM content_models WHERE id = ?", [id]);
-        if (result.affectedRows === 0) {
+        const { field_name, field_key, field_type, is_required, order } = req.body;
+
+        const [result] = await pool.query(
+            `UPDATE content_fields 
+       SET field_name = ?, field_key = ?, field_type = ?, is_required = ?, \`order\` = ? 
+       WHERE id = ?`,
+            [field_name, field_key, field_type, is_required ? 1 : 0, order || 0, id]
+        );
+
+        if (result.affectedRows === 0)
+            return res.status(404).json({ message: "Field tidak ditemukan" });
+
+        res.json({ message: "Field berhasil diperbarui" });
+    } catch (err) {
+        console.error("updateField error:", err);
+        res.status(500).json({ message: "Gagal memperbarui field" });
+    }
+});
+
+// 🧩 GET MODEL BY ID
+router.get("/model/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const [rows] = await pool.query("SELECT * FROM content_models WHERE id = ?", [id]);
+        if (rows.length === 0) {
             return res.status(404).json({ message: "Model tidak ditemukan" });
         }
-        res.json({ message: "Model berhasil dihapus" });
+
+        const model = rows[0];
+        res.json({ model });
     } catch (err) {
-        console.error("deleteModel error:", err);
-        res.status(500).json({ message: "Gagal menghapus model" });
+        console.error("getModel error:", err);
+        res.status(500).json({ message: "Gagal mengambil data model" });
+    }
+});
+
+// 🧩 GET MODEL, FIELDS, DAN CONTENT BERDASARKAN SLUG
+router.get("/content/:slug", async (req, res) => {
+    try {
+        const { slug } = req.params;
+
+        // 🔍 Ambil model berdasarkan slug
+        const [models] = await pool.query("SELECT * FROM content_models WHERE slug = ?", [slug]);
+        if (models.length === 0) {
+            return res.status(404).json({ message: "Model tidak ditemukan" });
+        }
+
+        const model = models[0];
+
+        // 🔍 Ambil daftar field berdasarkan model_id
+        const [fields] = await pool.query(
+            "SELECT id, field_name, field_key, field_type, is_required, `order` FROM content_fields WHERE model_id = ? ORDER BY `order` ASC",
+            [model.id]
+        );
+
+        // 🔍 Ambil konten (jika ada) dari tabel contents
+        const [contents] = await pool.query(
+            "SELECT id, slug, data, status, created_at, updated_at FROM contents WHERE model_id = ? LIMIT 1",
+            [model.id]
+        );
+
+        let contentData = null;
+        if (contents.length > 0) {
+            let parsedData = {};
+            const rawData = contents[0].data;
+
+            try {
+                // kalau sudah object, langsung pakai
+                if (typeof rawData === "object") {
+                    parsedData = rawData;
+                } else if (typeof rawData === "string" && rawData.trim() !== "") {
+                    parsedData = JSON.parse(rawData);
+                } else {
+                    parsedData = {};
+                }
+            } catch (e) {
+                console.warn("⚠️ JSON parse gagal, isi bukan JSON valid:", rawData);
+                parsedData = {};
+            }
+
+            contentData = {
+                id: contents[0].id,
+                slug: contents[0].slug,
+                status: contents[0].status,
+                data: parsedData,
+            };
+        }
+
+        res.json({
+            model,
+            fields,
+            content: contentData,
+        });
+    } catch (err) {
+        console.error("getContentBySlug error:", err);
+        res.status(500).json({ message: "Gagal mengambil data konten" });
     }
 });
 

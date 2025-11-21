@@ -7,12 +7,19 @@ import {
   FiPlus,
   FiTrash2,
   FiSettings,
-  FiSave,
+  FiType,
+  FiImage,
+  FiHash,
+  FiClock,
+  FiMapPin,
+  FiLayers,
+  FiLink,
 } from "react-icons/fi";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 import AddFieldModal from "../../components/AddFieldModal";
 import SettingsPanel from "../../components/SettingsPanel";
+import EditFieldModal from "../../components/EditFieldModal";
 
 export default function SinglePageHome() {
   const { slug } = useParams();
@@ -20,8 +27,9 @@ export default function SinglePageHome() {
   const [fields, setFields] = useState<any[]>([]);
   const [showAddField, setShowAddField] = useState(false);
   const [selectedField, setSelectedField] = useState<any | null>(null);
-  const [showSettings, setShowSettings] = useState(false); // 👈 untuk panel kanan
+  const [showSettings, setShowSettings] = useState(false);
   const [modelId, setModelId] = useState<number | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const [basicConfig, setBasicConfig] = useState({
     name: "",
@@ -34,11 +42,10 @@ export default function SinglePageHome() {
     workflow: false,
   });
 
-  // ✅ Ambil model dan field dari backend
   useEffect(() => {
     const fetchModel = async () => {
       try {
-        const res = await fetch(`http://localhost:4000/api/content/${slug}`);
+        const res = await fetch(`http://localhost:4000/api/content-builder/content/${slug}`);
         const data = await res.json();
 
         if (!res.ok || !data.model) {
@@ -62,7 +69,6 @@ export default function SinglePageHome() {
     fetchModel();
   }, [slug]);
 
-  // ✅ Tambah Field
   const addField = async (type: string) => {
     if (!modelId) {
       Swal.fire("Error", "Model belum dimuat.", "warning");
@@ -84,7 +90,6 @@ export default function SinglePageHome() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Gagal menambah field");
 
-      // simpan objek field baru
       setFields([...fields, data.field || { id: data.id, label: type, field_type: type }]);
       Swal.fire("Berhasil", "Field berhasil ditambahkan.", "success");
     } catch (err: any) {
@@ -92,7 +97,6 @@ export default function SinglePageHome() {
     }
   };
 
-  // ✅ Hapus Field
   const deleteField = async (index: number) => {
     const confirm = await Swal.fire({
       title: "Hapus field ini?",
@@ -116,46 +120,9 @@ export default function SinglePageHome() {
     }
   };
 
-  // ✅ Simpan Model
-  const handleSave = async () => {
-    try {
-      const payload = {
-        name: basicConfig.name,
-        slug: basicConfig.apiId,
-        type: "single",
-        api_endpoint: `/api/content/${basicConfig.apiId}`,
-        fields: fields.map((f) => ({
-          type: f.field_type,
-          name: f.label,
-        })),
-        config: advancedConfig,
-      };
-
-      const res = await fetch("http://localhost:4000/api/content-builder/model", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to save content");
-
-      Swal.fire({
-        icon: "success",
-        title: "Saved!",
-        text: "All changes have been saved successfully.",
-        timer: 1800,
-        showConfirmButton: false,
-      });
-    } catch (err: any) {
-      Swal.fire("Error", err.message, "error");
-    }
-  };
-
-  // ✅ Saat klik field
   const handleFieldClick = (field: any) => {
     setSelectedField(field);
-    setShowSettings(true);
+    setShowEditModal(true);
   };
 
   return (
@@ -181,12 +148,18 @@ export default function SinglePageHome() {
             </button>
           </div>
 
+          {/* Tombol Settings */}
           <button
-            onClick={handleSave}
+            onClick={() => setShowSettings(!showSettings)}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm shadow-sm transition"
           >
-            <FiSave />
-            Save Changes
+            <motion.div
+              animate={{ rotate: showSettings ? 180 : 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <FiSettings size={18} />
+            </motion.div>
+            <span>Settings</span>
           </button>
         </div>
 
@@ -200,72 +173,109 @@ export default function SinglePageHome() {
               </p>
             </div>
           ) : (
-            fields.map((field: any, index) => (
-              <motion.div
-                key={field.id || index}
-                whileHover={{ scale: 1.01 }}
-                onClick={() => handleFieldClick(field)} // 👈 klik field buka panel
-                className={`flex justify-between items-center border rounded-lg p-3 cursor-pointer ${selectedField?.id === field.id
-                  ? "bg-blue-50 border-blue-400"
-                  : "bg-white hover:bg-slate-50"
-                  }`}
-              >
-                <div className="flex items-center gap-2">
-                  <FiSettings className="text-blue-500" />
-                  <div>
-                    <p className="text-sm font-medium text-slate-700">{field.label}</p>
-                    <p className="text-xs text-slate-500 capitalize">
-                      {field.field_type}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation(); // biar gak buka panel
-                    deleteField(index);
-                  }}
-                  className="text-red-500 hover:text-red-600 transition"
+            fields.map((field: any, index) => {
+              // Tentukan ikon sesuai field_type
+              const getFieldIcon = (type: string) => {
+                switch (type) {
+                  case "text": return <FiType className="text-blue-500" />;
+                  case "media": return <FiImage className="text-purple-500" />;
+                  case "number": return <FiHash className="text-green-500" />;
+                  case "datetime": return <FiClock className="text-orange-500" />;
+                  case "location": return <FiMapPin className="text-rose-500" />;
+                  case "multiple": return <FiLayers className="text-sky-500" />;
+                  case "relation": return <FiLink className="text-yellow-500" />;
+                  case "richtext": return <FiType className="text-indigo-500" />;
+                  default: return <FiSettings className="text-slate-400" />;
+                }
+              };
+
+              return (
+                <motion.div
+                  key={field.id || index}
+                  whileHover={{ scale: 1.01 }}
+                  onClick={() => handleFieldClick(field)}
+                  className={`flex justify-between items-center border rounded-lg p-4 cursor-pointer transition-all ${selectedField?.id === field.id
+                    ? "bg-blue-50 border-blue-400"
+                    : "bg-white hover:bg-slate-50"
+                    }`}
                 >
-                  <FiTrash2 />
-                </button>
-              </motion.div>
-            ))
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-slate-50 rounded-lg shadow-sm">
+                      {getFieldIcon(field.field_type)}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800 leading-tight">
+                        {field.field_name || "Untitled Field"}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1 capitalize">
+                        {field.field_type}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteField(index);
+                    }}
+                    className="text-red-500 hover:text-red-600 transition"
+                  >
+                    <FiTrash2 />
+                  </button>
+                </motion.div>
+              );
+            })
           )}
         </div>
       </div>
 
-      {/* Panel kanan */}
-      {showSettings && selectedField && (
-        <SettingsPanel
-          open={showSettings}
-          field={{
-            id: selectedField.id,
-            name: selectedField.label,
-            apiId: selectedField.api_id || selectedField.field_key || "",
-            multiLang: false,
-            seo: false,
-            workflow: false,
-          }}
-          onClose={() => setShowSettings(false)}
-          onSave={(updatedField) => {
-            setFields((prev) =>
-              prev.map((f) =>
-                f.id === updatedField.id
-                  ? { ...f, label: updatedField.name, field_key: updatedField.apiId }
-                  : f
-              )
-            );
-            Swal.fire("Saved", "Configuration updated!", "success");
-            setShowSettings(false);
-          }}
-        />
-      )}
+      {/* Panel kanan untuk Settings Configuration */}
+      <SettingsPanel
+        open={showSettings} 
+        field={{
+          id: modelId,
+          name: basicConfig.name,
+          apiId: basicConfig.apiId,
+          multiLang: advancedConfig.multiLanguage,
+          seo: advancedConfig.seo,
+          workflow: advancedConfig.workflow,
+        }}
+        onClose={() => setShowSettings(false)}
+        onSave={(updatedConfig) => {
+          setBasicConfig({
+            name: updatedConfig.name,
+            apiId: updatedConfig.apiId,
+          });
+          setAdvancedConfig({
+            multiLanguage: updatedConfig.multiLang,
+            seo: updatedConfig.seo,
+            workflow: updatedConfig.workflow,
+          });
+          Swal.fire("Saved", "Configuration updated!", "success");
+          setShowSettings(false);
+        }}
+      />
 
       {/* Modal Add Field */}
       {showAddField && (
         <AddFieldModal
           onClose={() => setShowAddField(false)}
           onSelect={(type) => addField(type)}
+        />
+      )}
+
+      {showEditModal && selectedField && (
+        <EditFieldModal
+          fieldId={selectedField.id}
+          onClose={() => setShowEditModal(false)}
+          onSave={() => {
+            setShowEditModal(false);
+            Swal.fire("Updated", "Field updated successfully!", "success");
+            // refresh field list
+            fetch(`http://localhost:4000/api/content-builder/content/${slug}`)
+              .then((res) => res.json())
+              .then((data) => setFields(data.fields));
+          }}
         />
       )}
     </div>

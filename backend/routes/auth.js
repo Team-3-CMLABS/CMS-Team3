@@ -120,7 +120,7 @@ router.get("/auth/google/callback", async (req, res) => {
 
     // ✅ User aktif → buat token
     const token = jwt.sign(
-      { id: user.id_user, role: user.role, status: user.status },
+      { id: user.id_user, role: user.role, status: user.status, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: "2h" }
     );
@@ -181,7 +181,7 @@ router.post("/login", async (req, res) => {
       return res.status(403).json({ message: "Akun Anda telah dinonaktifkan. Hubungi admin." });
 
     const token = jwt.sign(
-      { id: user.id_user, role: user.role, status: user.status },
+      { id: user.id_user, role: user.role, status: user.status, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: "2h" }
     );
@@ -290,7 +290,7 @@ router.post("/admin/login", async (req, res) => {
       return res.status(403).json({ message: "Akun admin telah dinonaktifkan" });
 
     const token = jwt.sign(
-      { id: admin.id_user, role: admin.role, status: admin.status },
+      { id: admin.id_user, role: admin.role, status: admin.status, email: admin.email },
       process.env.JWT_SECRET,
       { expiresIn: "2h" }
     );

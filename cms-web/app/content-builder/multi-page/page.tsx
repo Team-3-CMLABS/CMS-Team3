@@ -16,9 +16,33 @@ export default function MultiPageList() {
   // 🔹 Ambil data Multi Page dari DB
   const fetchPages = async () => {
     try {
-      const res = await fetch("http://localhost:4000/api/content");
+      const token = localStorage.getItem("token");
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+      const res = await fetch("http://localhost:4000/api/content-builder?type=multi", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        Swal.fire("Error", err.message || "Gagal memuat daftar multi page", "error");
+        return;
+      }
+
       const data = await res.json();
-      const filtered = data.filter((item: any) => item.type === "multi");
+      const list = Array.isArray(data.contents) ? data.contents : [];
+
+      // 🔹 Filter hanya type multi
+      let filtered = list.filter((item: any) => item.type === "multi");
+
+      // 🔹 Kalau user role = editor, hanya tampilkan yang dia buat
+      if (user.role === "editor" && user.email) {
+        filtered = filtered.filter(
+          (page: any) =>
+            page.editor_email === user.email // cek yang dia buat
+        );
+      }
+
       setPages(filtered);
     } catch (err) {
       console.error("Gagal memuat multi page:", err);
@@ -58,8 +82,7 @@ export default function MultiPageList() {
       });
 
       const data = await res.json();
-      if (!res.ok)
-        return Swal.fire("Error", data.message || "Gagal menghapus model", "error");
+      if (!res.ok) return Swal.fire("Error", data.message || "Gagal menghapus model", "error");
 
       Swal.fire("Berhasil!", "Model telah dihapus.", "success");
       setPages((prev) => prev.filter((page) => page.id !== id));
@@ -99,7 +122,7 @@ export default function MultiPageList() {
                     onClick={() => router.push(`/content-builder/multi-page/${page.slug}`)}
                     className="font-semibold text-slate-800 hover:text-purple-600 cursor-pointer"
                   >
-                    {page.name}
+                    {page.model}
                   </h3>
                 </div>
 
@@ -112,7 +135,7 @@ export default function MultiPageList() {
                     <FiEdit3 size={18} />
                   </button>
                   <button
-                    onClick={() => handleDeleteModel(page.id, page.name)}
+                    onClick={() => handleDeleteModel(page.id, page.model)}
                     className="text-slate-400 hover:text-red-500 transition"
                     title="Delete"
                   >
@@ -122,8 +145,22 @@ export default function MultiPageList() {
               </div>
 
               {/* 🔹 Info body */}
-              <p className="text-sm text-slate-500 mb-1">Slug: {page.slug}</p>
-              <p className="text-xs text-slate-400">Type: {page.type || "multi"}</p>
+              <div className="text-sm text-slate-600 space-y-1">
+                <p>
+                  <span className="font-medium text-slate-700">Slug:</span> {page.slug}
+                </p>
+                <p>
+                  <span className="font-medium text-slate-700">Type:</span> {page.type || "multi"}
+                </p>
+                <p>
+                  <span className="font-medium text-slate-700">Email Editor:</span>{" "}
+                  {page.editor_email ? (
+                    <span>{page.editor_email}</span>
+                  ) : (
+                    <span className="italic text-slate-400">Belum Ada Editor</span>
+                  )}
+                </p>
+              </div>
             </div>
           ))}
         </div>
@@ -135,7 +172,11 @@ export default function MultiPageList() {
 
       {/* 🔹 Modal Create */}
       {modalOpen && (
-        <PageModal title="Create Multi Page" type="multi" onClose={handleModalClose} />
+        <PageModal
+          title="Create Multi Page"
+          type="multi"
+          onClose={handleModalClose}
+        />
       )}
     </div>
   );
