@@ -77,7 +77,7 @@ router.get("/auth/google/callback", async (req, res) => {
       const [result] = await connection.query(
         `INSERT INTO users (nama_user, username, email, password, role, status, auth_provider, is_active)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [data.name, username, data.email, null, "user", "PENDING_ROLE", "google", 1]
+        [data.name, username, data.email, null, null, "PENDING_ROLE", "google", 1]
       );
 
       // 🔔 Kirim notifikasi ke admin

@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { FiArrowLeft } from "react-icons/fi";
 import logo from "@/public/logo.png";
 import illustration from "@/public/illustration.png";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function CheckEmail() {
   const searchParams = useSearchParams();
@@ -39,6 +40,10 @@ export default function CheckEmail() {
             <span className="font-semibold">{email}</span> <br />
             which is valid for 24 hours. Please check your inbox!
           </p>
+
+          <div className="absolute top-4 right-4">
+            <ThemeToggle />
+          </div>
 
           {/* Open Gmail button */}
           <a

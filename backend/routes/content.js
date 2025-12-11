@@ -223,14 +223,14 @@ router.put("/:slug", async (req, res) => {
         if (existing.length) {
             // ✅ update konten dan isi slug kalau belum ada
             await pool.query(
-                "UPDATE contents SET data = ?, status = ?, slug = IFNULL(slug, ?), updated_at = NOW() WHERE id = ?",
-                [JSON.stringify(data), status || "published", slug, existing[0].id]
+                "UPDATE contents SET data = ?, status = ?, slug = IFNULL(slug, ?), updated_at = NOW(), editor_email=? WHERE id = ?",
+                [JSON.stringify(data), status || "published", slug, req.user.email, existing[0].id]
             );
         } else {
             // kalau belum ada, insert baru
             await pool.query(
-                "INSERT INTO contents (model_id, slug, data, status, created_at) VALUES (?, ?, ?, ?, NOW())",
-                [modelId, slug, JSON.stringify(data), status || "published"]
+                "INSERT INTO contents (model_id, slug, data, status, editor_email, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
+                [modelId, slug, JSON.stringify(data), status || "published", req.user.email]
             );
         }
 

@@ -194,37 +194,32 @@ router.delete("/model/:id", async (req, res) => {
 });
 
 // 🧩 TAMBAH FIELD BARU
-router.post("/field", async (req, res) => {
+router.post("/field", verifyToken, async (req, res) => {
     try {
         const { model_id, label, field_type } = req.body;
+        const editorEmail = req.user.email;
+
         const field_key = label
             .toLowerCase()
             .replace(/\s+/g, "_")
-            .replace(/[^a-z0-9_]/g, ""); // buat API ID otomatis
+            .replace(/[^a-z0-9_]/g, "");
 
         const [result] = await pool.query(
-            `INSERT INTO content_fields (model_id, field_name, field_key, field_type, is_required, \`order\`)
-       VALUES (?, ?, ?, ?, 0, 0)`,
-            [model_id, label, field_key, field_type]
+            `INSERT INTO content_fields (model_id, field_name, field_key, field_type, is_required, \`order\`, editor_email)
+             VALUES (?, ?, ?, ?, 0, 0, ?)`,
+            [model_id, label, field_key, field_type, editorEmail]
         );
 
-        res.json({
-            message: "Field created successfully",
-            field: {
-                id: result.insertId,
-                field_name: label,
-                field_key, // << ini dikirim balik ke FE
-                field_type,
-            },
-        });
+        res.json({ message: "Field created", id: result.insertId });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Failed to create field" });
     }
 });
 
+
 // 🧩 HAPUS FIELD
-router.delete("/field/:id", async (req, res) => {
+router.delete("/field/:id", verifyToken, async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -270,9 +265,9 @@ router.put("/field/:id", async (req, res) => {
 
         const [result] = await pool.query(
             `UPDATE content_fields 
-       SET field_name = ?, field_key = ?, field_type = ?, is_required = ?, \`order\` = ? 
+       SET field_name = ?, field_key = ?, field_type = ?, is_required = ?, editor_email = ?, \`order\` = ? 
        WHERE id = ?`,
-            [field_name, field_key, field_type, is_required ? 1 : 0, order || 0, id]
+            [field_name, field_key, field_type, is_required ? 1 : 0, req.user.email, order || 0, id]
         );
 
         if (result.affectedRows === 0)
@@ -318,7 +313,7 @@ router.get("/content/:slug", async (req, res) => {
 
         // 🔍 Ambil daftar field berdasarkan model_id
         const [fields] = await pool.query(
-            "SELECT id, field_name, field_key, field_type, is_required, `order` FROM content_fields WHERE model_id = ? ORDER BY `order` ASC",
+            "SELECT id, field_name, field_key, field_type, editor_email, is_required, `order` FROM content_fields WHERE model_id = ? ORDER BY `order` ASC",
             [model.id]
         );
 

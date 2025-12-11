@@ -470,7 +470,6 @@ export default function DetailProjectsPage() {
                                     </div>
                                 )}
                             </div>
-
                         </div>
                     </div>
                 </main>

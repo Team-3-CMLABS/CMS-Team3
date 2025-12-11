@@ -148,7 +148,7 @@ export default function ContentPage() {
   const handleDelete = async (item: any) => {
     const confirm = await Swal.fire({
       title: "Hapus Konten?",
-      text: `Apakah kamu yakin ingin menghapus "${item.name}"?`,
+      text: `Apakah kamu yakin ingin menghapus "${item.model}"?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Ya, Hapus",

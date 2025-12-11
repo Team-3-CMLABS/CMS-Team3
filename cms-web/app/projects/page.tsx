@@ -19,12 +19,17 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
 
-  const fetchProjects = async () => { 
+  const fetchProjects = async () => {
     try {
-      const res = await fetch("http://localhost:4000/api/projects");
-      const result = await res.json();
+      const token = localStorage.getItem("token");
 
-      // Karena backend mengirim array langsung
+      const res = await fetch("http://localhost:4000/api/projects", {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      const result = await res.json();
       setProjects(Array.isArray(result) ? result : []);
     } catch (err) {
       console.error("Gagal mengambil data project:", err);

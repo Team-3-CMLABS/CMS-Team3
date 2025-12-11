@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function Login() {
   const router = useRouter();
@@ -124,6 +125,10 @@ export default function Login() {
           <p className="text-sm text-center text-slate-500 dark:text-slate-400 mb-8">
             Enter your email and password to access your account
           </p>
+
+          <div className="absolute top-4 right-4">
+            <ThemeToggle />
+          </div>
 
           {/* Form */}
           <form onSubmit={handleLogin} className="space-y-4">

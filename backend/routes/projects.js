@@ -1,6 +1,7 @@
 import express from "express";
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
+import jwt from "jsonwebtoken";
 
 dotenv.config();
 const router = express.Router();
@@ -16,35 +17,85 @@ const db = await mysql.createConnection({
     queueLimit: 0,
 });
 
-// ===== GET Semua Project + Collaborators =====
-router.get("/", async (req, res) => {
-    try {
-        const [rows] = await db.query(`
-      SELECT 
-        p.*, 
-        c.id AS collab_id, 
-        u.nama_user AS collab_name, 
-        u.email AS collab_email, 
-        c.posisi, 
-        c.status AS collab_status
-      FROM projects p
-      LEFT JOIN project_collaborators pc ON p.id = pc.project_id
-      LEFT JOIN collaborators c ON pc.collaborator_id = c.id
-      LEFT JOIN users u ON c.user_id = u.id_user
-      ORDER BY p.last_update DESC
-    `);
+// Middleware ambil user dari token
+const verifyToken = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "Token tidak ditemukan" });
+    }
 
+    try {
+        const token = authHeader.split(" ")[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (err) {
+        return res.status(403).json({ message: "Token tidak valid" });
+    }
+};
+
+// ===== GET Semua Project + Collaborators =====
+router.get("/", verifyToken, async (req, res) => {
+    try {
+        const { role, id } = req.user;
+        const id_user = id;
+        const roleLower = role.toLowerCase();
+
+        let query = `
+            SELECT 
+                p.*, 
+                c.id AS collab_id, 
+                u.nama_user AS collab_name, 
+                u.email AS collab_email, 
+                c.posisi, 
+                c.status AS collab_status,
+                u.id_user AS collaborator_user_id
+            FROM projects p
+            LEFT JOIN project_collaborators pc ON p.id = pc.project_id
+            LEFT JOIN collaborators c ON pc.collaborator_id = c.id
+            LEFT JOIN users u ON c.user_id = u.id_user
+        `;
+
+        const params = [];
+
+        // ADMIN → lihat semua
+        if (roleLower === "admin") {
+            query += ` ORDER BY p.last_update DESC`;
+        }
+
+        // EDITOR → lihat semua project yang dia terlibat 
+        else if (roleLower === "editor") {
+            query += `
+                WHERE u.id_user = ?
+                ORDER BY p.last_update DESC
+            `;
+            params.push(id_user);
+        }
+
+        else {
+            query += `
+                WHERE u.id_user = ?
+                ORDER BY p.last_update DESC
+            `;
+            params.push(id_user);
+        }
+
+        // Jalankan query
+        const [rows] = await db.query(query, params);
         const result = [];
         const map = {};
 
         rows.forEach((row) => {
             if (!map[row.id]) {
                 map[row.id] = { ...row, collaborators: [] };
+
                 delete map[row.id].collab_id;
                 delete map[row.id].collab_name;
                 delete map[row.id].collab_email;
                 delete map[row.id].posisi;
                 delete map[row.id].collab_status;
+                delete map[row.id].collaborator_user_id;
+
                 result.push(map[row.id]);
             }
 
@@ -54,7 +105,7 @@ router.get("/", async (req, res) => {
                     name: row.collab_name,
                     email: row.collab_email,
                     posisi: row.posisi,
-                    status: row.collab_status,
+                    status: row.collab_status
                 });
             }
         });

@@ -15,6 +15,7 @@ import {
 import logo from "@/public/logo.png";
 import illustration from "@/public/illustration.png";
 import Swal from "sweetalert2";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -83,6 +84,10 @@ export default function SignupPage() {
           <p className="text-sm text-center text-slate-500 dark:text-slate-400 mb-8">
             Create your account to get started
           </p>
+
+          <div className="absolute top-4 right-4">
+            <ThemeToggle />
+          </div>
 
           {/* Form */}
           <form onSubmit={handleSignup} className="space-y-4">

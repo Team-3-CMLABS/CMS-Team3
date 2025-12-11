@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import logo from "@/public/logo.png";
 import illustration from "@/public/illustration.png";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function LinkExpired() {
   return (
@@ -30,6 +31,10 @@ export default function LinkExpired() {
             The password reset link has expired. <br />
             Please request a new link to reset your password.
           </p>
+
+          <div className="absolute top-4 right-4">
+            <ThemeToggle />
+          </div>
 
           {/* Back button */}
           <Link

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { FiMail, FiArrowLeft } from "react-icons/fi";
 import logo from "@/public/logo.png";
 import illustration from "@/public/illustration.png";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -47,6 +48,10 @@ export default function ForgotPassword() {
             No worries! Enter your email address below, and we’ll send you a link
             to reset your password.
           </p>
+
+          <div className="absolute top-4 right-4">
+            <ThemeToggle />
+          </div>
 
           <form onSubmit={handleForgot} className="space-y-4">
             <div>

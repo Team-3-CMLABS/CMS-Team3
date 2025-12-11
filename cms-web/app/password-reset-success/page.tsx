@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import logo from "@/public/logo.png";
 import illustration from "@/public/illustration.png";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function PasswordResetSuccess() {
   return (
@@ -30,6 +31,10 @@ export default function PasswordResetSuccess() {
             You can log in with your new password. <br />
             If you encounter any issues, please contact support!
           </p>
+
+          <div className="absolute top-4 right-4">
+            <ThemeToggle />
+          </div>
 
           {/* Login Now */}
           <Link

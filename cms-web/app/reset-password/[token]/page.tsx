@@ -7,6 +7,7 @@ import { FiArrowLeft, FiEye, FiEyeOff } from "react-icons/fi";
 import Link from "next/link";
 import logo from "@/public/logo.png";
 import illustration from "@/public/illustration.png";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -64,6 +65,10 @@ export default function ResetPasswordPage() {
             Ensure it’s strong and secure.
           </p>
 
+          <div className="absolute top-4 right-4">
+            <ThemeToggle />
+          </div>
+
           {/* Form */}
           <form onSubmit={handleReset} className="space-y-4">
             {/* New Password */}
@@ -79,7 +84,7 @@ export default function ResetPasswordPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   className="w-full outline-none bg-transparent text-sm"
-                  minLength={8}
+                  minLength={4}
                 />
                 <button
                   type="button"
@@ -90,7 +95,7 @@ export default function ResetPasswordPage() {
                 </button>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Must be at least 8 characters
+                Must be at least 4 characters
               </p>
             </div>
 
