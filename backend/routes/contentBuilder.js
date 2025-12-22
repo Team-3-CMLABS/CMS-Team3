@@ -258,16 +258,25 @@ router.get("/field/:id", async (req, res) => {
 });
 
 // 🧩 UPDATE FIELD
-router.put("/field/:id", async (req, res) => {
+router.put("/field/:id", verifyToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { field_name, field_key, field_type, is_required, order } = req.body;
 
         const [result] = await pool.query(
             `UPDATE content_fields 
-       SET field_name = ?, field_key = ?, field_type = ?, is_required = ?, editor_email = ?, \`order\` = ? 
-       WHERE id = ?`,
-            [field_name, field_key, field_type, is_required ? 1 : 0, req.user.email, order || 0, id]
+             SET field_name = ?, field_key = ?, field_type = ?, is_required = ?, 
+                 editor_email = ?, \`order\` = ? 
+             WHERE id = ?`,
+            [
+                field_name,
+                field_key,
+                field_type,
+                is_required ? 1 : 0,
+                req.user.email, 
+                order || 0,
+                id,
+            ]
         );
 
         if (result.affectedRows === 0)

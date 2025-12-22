@@ -2,9 +2,15 @@ import express from "express";
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
 dotenv.config();
 
 const router = express.Router();
+
+/* ===================== DATABASE ===================== */
 const pool = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
@@ -15,259 +21,204 @@ const pool = mysql.createPool({
     queueLimit: 0,
 });
 
-// Middleware ambil user dari token
+/* ===================== MULTER CONFIG ===================== */
+const uploadPath = "uploads";
+if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath);
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadPath),
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname);
+        const filename = `${Date.now()}-${Math.random().toString(36).substring(2)}${ext}`;
+        cb(null, filename);
+    },
+});
+const upload = multer({ storage });
+
+/* ===================== AUTH MIDDLEWARE ===================== */
 const verifyToken = (req, res, next) => {
     const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
-        return res.status(401).json({ message: "Token tidak ditemukan" });
-    }
-
+    if (!authHeader?.startsWith("Bearer ")) return res.status(401).json({ message: "Token tidak ditemukan" });
     try {
         const token = authHeader.split(" ")[1];
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded;
+        req.user = jwt.verify(token, process.env.JWT_SECRET);
         next();
-    } catch (err) {
+    } catch {
         return res.status(403).json({ message: "Token tidak valid" });
     }
 };
 
-// ===================== GET ALL CONTENT =====================
+/* ===================== GET ALL CONTENT ===================== */
 router.get("/", verifyToken, async (req, res) => {
     try {
         const { role, email } = req.user;
-
         let query = `
-      SELECT 
-        m.id AS model_id,
-        m.name AS model_name,
-        m.slug AS model_slug,
-        m.type AS model_type,
-        m.editor_email AS model_editor_email,
-        COALESCE(c.id, 0) AS content_id,
-        COALESCE(c.slug, m.slug) AS content_slug,
-        COALESCE(c.status, 'draft') AS content_status,
-        c.data AS content_data,
-        c.updated_at,
-        c.editor_email AS content_editor_email
-      FROM content_models m
-      LEFT JOIN contents c ON c.model_id = m.id
-    `;
-
+            SELECT 
+                m.id AS model_id,
+                m.name AS model_name,
+                m.slug AS model_slug,
+                m.type AS model_type,
+                m.editor_email AS model_editor_email,
+                COALESCE(c.slug, m.slug) AS content_slug,
+                COALESCE(c.status, 'draft') AS content_status,
+                c.data AS content_data,
+                c.updated_at,
+                c.editor_email AS content_editor_email
+            FROM content_models m
+            LEFT JOIN contents c ON c.model_id = m.id
+        `;
         let params = [];
         if (role === "editor") {
             query += " WHERE c.editor_email = ? OR m.editor_email = ?";
             params = [email, email];
         }
-
         query += " ORDER BY m.id ASC";
 
         const [rows] = await pool.query(query, params);
 
-        // 🧩 Format hasil biar aman
         const formatted = rows.map((r) => {
             let parsedData = {};
-            try {
-                parsedData =
-                    typeof r.content_data === "string"
-                        ? JSON.parse(r.content_data)
-                        : r.content_data || {};
-            } catch {
-                parsedData = {};
-            }
-
+            try { parsedData = typeof r.content_data === "string" ? JSON.parse(r.content_data) : r.content_data || {}; } catch { parsedData = {}; }
             return {
                 id: r.model_id,
                 model: r.model_name,
                 slug: r.content_slug,
-                type: r.model_type,
                 status: r.content_status,
                 data: parsedData,
-                editor_email: r.content_editor_email || r.model_editor_email || null,
+                editor_email: r.model_editor_email, // pakai editor dari content_models dulu
                 updated_at: r.updated_at,
             };
         });
 
         res.json({ contents: formatted });
     } catch (err) {
-        console.error("Error fetching contents:", err);
+        console.error(err);
         res.status(500).json({ message: "Database error" });
     }
 });
 
-// ===================== GET CONTENT BY SLUG =====================
+/* ===================== GET CONTENT BY SLUG ===================== */
 router.get("/:slug", async (req, res) => {
     try {
         const { slug } = req.params;
-        console.log("📥 GET content slug:", slug);
-
-        // ambil model
-        const [modelRows] = await pool.query(
-            "SELECT * FROM content_models WHERE slug = ?",
-            [slug]
-        );
-        if (!modelRows.length)
-            return res.status(404).json({ message: "Model not found" });
-
+        const [modelRows] = await pool.query("SELECT * FROM content_models WHERE slug = ?", [slug]);
+        if (!modelRows.length) return res.status(404).json({ message: "Model not found" });
         const model = modelRows[0];
 
-        // ambil semua field dari model_id
         const [fields] = await pool.query(
-            `SELECT 
-    id,
-    field_name AS label,
-    LOWER(field_name) AS name,
-    field_type AS type
-  FROM content_fields
-  WHERE model_id = ?
-  ORDER BY id ASC`,
+            `SELECT field_name AS label, REPLACE(LOWER(field_name), ' ', '_') AS name, field_type AS type
+             FROM content_fields WHERE model_id = ? ORDER BY id ASC`,
             [model.id]
         );
 
-        // ambil konten terakhir
         const [contentRows] = await pool.query(
             "SELECT * FROM contents WHERE model_id = ? ORDER BY id DESC LIMIT 1",
             [model.id]
         );
 
-        // jika belum ada konten
-        if (!contentRows.length) {
-            return res.json({
-                model,
-                fields,
-                content: {
-                    id: null,
-                    slug,
-                    status: "draft",
-                    raw: {},
-                },
-            });
+        let contentData = { status: "draft", raw: {} };
+        if (contentRows.length) {
+            let raw = {};
+            try { raw = typeof contentRows[0].data === "string" ? JSON.parse(contentRows[0].data) : contentRows[0].data; } catch { raw = {}; }
+            contentData = { status: contentRows[0].status, raw };
         }
 
-        let contentData = {};
-        try {
-            contentData =
-                typeof contentRows[0].data === "string"
-                    ? JSON.parse(contentRows[0].data)
-                    : contentRows[0].data || {};
-        } catch {
-            contentData = {};
-        }
-
-        res.json({
-            model,
-            fields,
-            content: {
-                id: contentRows[0].id,
-                slug: contentRows[0].slug,
-                status: contentRows[0].status || "draft",
-                raw: contentData,
-            },
-        });
+        res.json({ model, fields, content: contentData });
     } catch (err) {
-        console.error("Error get content:", err);
+        console.error(err);
         res.status(500).json({ message: "Gagal mengambil konten" });
     }
 });
 
-// ===================== CREATE NEW CONTENT =====================
-router.post("/:slug", verifyToken, async (req, res) => {
+/* ===================== CREATE CONTENT ===================== */
+router.post("/:slug", verifyToken, upload.any(), async (req, res) => {
     try {
         const { slug } = req.params;
-        const { data, status } = req.body;
-        const editorEmail = req.user.email;
+        const status = req.body.status || "draft";
 
-        const [modelRows] = await pool.query(
-            "SELECT id FROM content_models WHERE slug = ? LIMIT 1",
-            [slug]
-        );
-        if (!modelRows.length)
-            return res.status(404).json({ message: "Model not found" });
+        const [modelRows] = await pool.query("SELECT id, editor_email FROM content_models WHERE slug = ?", [slug]);
+        if (!modelRows.length) return res.status(404).json({ message: "Model not found" });
+        const model = modelRows[0];
+        const editorEmail = model.editor_email || req.user.email;
 
-        const modelId = modelRows[0].id;
+        const data = {};
+        Object.keys(req.body).forEach(key => {
+            if (key === "status") return;
+            try { data[key] = JSON.parse(req.body[key]); } catch { data[key] = req.body[key]; }
+        });
+
+        if (req.files?.length) {
+            req.files.forEach((file) => {
+                if (!data[file.fieldname]) data[file.fieldname] = [];
+                if (!Array.isArray(data[file.fieldname])) data[file.fieldname] = [data[file.fieldname]];
+                data[file.fieldname].push(`/uploads/${file.filename}`);
+            });
+        }
 
         await pool.query(
-            `INSERT INTO contents (model_id, slug, data, status, editor_email, created_at)
-       VALUES (?, ?, ?, ?, ?, NOW())`,
-            [modelId, slug, JSON.stringify(data), status || "draft", editorEmail]
+            "INSERT INTO contents (model_id, slug, data, status, editor_email, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
+            [model.id, slug, JSON.stringify(data), status, editorEmail]
         );
 
-        res.json({ message: "Content saved successfully" });
+        res.json({ message: "Content saved", data });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Gagal menyimpan konten" });
     }
 });
 
-// ===================== UPDATE CONTENT =====================
-router.put("/:slug", async (req, res) => {
+/* ===================== UPDATE CONTENT ===================== */
+router.put("/:slug", verifyToken, upload.any(), async (req, res) => {
     try {
         const { slug } = req.params;
-        const { data, status } = req.body;
+        const status = req.body.status || "draft";
 
-        const [modelRows] = await pool.query(
-            "SELECT id FROM content_models WHERE slug = ? LIMIT 1",
-            [slug]
-        );
-        if (!modelRows.length)
-            return res.status(404).json({ message: "Model not found" });
+        const [modelRows] = await pool.query("SELECT id, editor_email FROM content_models WHERE slug = ?", [slug]);
+        if (!modelRows.length) return res.status(404).json({ message: "Model not found" });
+        const model = modelRows[0];
+        const editorEmail = model.editor_email || req.user.email;
 
-        const modelId = modelRows[0].id;
-
-        // cek apakah sudah ada data sebelumnya
-        const [existing] = await pool.query(
-            "SELECT id, slug FROM contents WHERE model_id = ? ORDER BY id DESC LIMIT 1",
-            [modelId]
+        const [existingRows] = await pool.query(
+            "SELECT id, data FROM contents WHERE model_id = ? ORDER BY id DESC LIMIT 1",
+            [model.id]
         );
 
-        if (existing.length) {
-            // ✅ update konten dan isi slug kalau belum ada
+        let oldData = {};
+        if (existingRows.length) {
+            try { oldData = typeof existingRows[0].data === "string" ? JSON.parse(existingRows[0].data) : existingRows[0].data; } catch { oldData = {}; }
+        }
+
+        const data = { ...oldData };
+        Object.keys(req.body).forEach(key => {
+            if (key !== "status") {
+                try { data[key] = JSON.parse(req.body[key]); } catch { data[key] = req.body[key]; }
+            }
+        });
+
+        if (req.files?.length) {
+            req.files.forEach((file) => {
+                if (!data[file.fieldname]) data[file.fieldname] = [];
+                if (!Array.isArray(data[file.fieldname])) data[file.fieldname] = [data[file.fieldname]];
+                data[file.fieldname].push(`/uploads/${file.filename}`);
+            });
+        }
+
+        if (existingRows.length) {
             await pool.query(
-                "UPDATE contents SET data = ?, status = ?, slug = IFNULL(slug, ?), updated_at = NOW(), editor_email=? WHERE id = ?",
-                [JSON.stringify(data), status || "published", slug, req.user.email, existing[0].id]
+                "UPDATE contents SET data = ?, status = ?, updated_at = NOW(), editor_email = ? WHERE id = ?",
+                [JSON.stringify(data), status, editorEmail, existingRows[0].id]
             );
         } else {
-            // kalau belum ada, insert baru
             await pool.query(
                 "INSERT INTO contents (model_id, slug, data, status, editor_email, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
-                [modelId, slug, JSON.stringify(data), status || "published", req.user.email]
+                [model.id, slug, JSON.stringify(data), status, editorEmail]
             );
         }
 
-        res.json({ message: "Content updated successfully" });
+        res.json({ message: "Content updated successfully", data });
     } catch (err) {
         console.error("Update error:", err);
         res.status(500).json({ message: "Gagal mengupdate konten" });
-    }
-});
-
-// ===================== UPDATE STATUS SAJA =====================
-router.patch("/:slug/status", async (req, res) => {
-    try {
-        const { slug } = req.params;
-        const { status } = req.body;
-
-        const validStatus = ["draft", "published", "archived"];
-        if (!validStatus.includes(status))
-            return res.status(400).json({ message: "Invalid status value" });
-
-        const [modelRows] = await pool.query(
-            "SELECT id FROM content_models WHERE slug = ? LIMIT 1",
-            [slug]
-        );
-        if (!modelRows.length)
-            return res.status(404).json({ message: "Model not found" });
-
-        const modelId = modelRows[0].id;
-        await pool.query(
-            "UPDATE contents SET status = ?, updated_at = NOW() WHERE model_id = ?",
-            [status, modelId]
-        );
-
-        res.json({ message: `✅ Status updated to '${status}'` });
-    } catch (err) {
-        console.error("Status update error:", err);
-        res.status(500).json({ message: "Gagal memperbarui status konten" });
     }
 });
 

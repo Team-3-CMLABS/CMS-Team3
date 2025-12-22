@@ -10,7 +10,6 @@ import passwordRoutes from "./routes/password.js";
 import usersRoutes from "./routes/users.js";
 import profileRoutes from "./routes/profile.js";
 import notificationsRouter from "./routes/notifications.js";
-import projectsRoutes from "./routes/projects.js";
 import collaboratorsRoutes from "./routes/collaborators.js";
 import plansRoutes from "./routes/plans.js";
 import subscriptionsRoutes from "./routes/subscriptions.js";
@@ -37,7 +36,6 @@ app.use("/api", authRoutes);
 app.use("/api/password", passwordRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/notifications", notificationsRouter);
-app.use("/api/projects", projectsRoutes);
 app.use("/api/collaborators", collaboratorsRoutes);
 app.use("/api/plans", plansRoutes);
 app.use("/api/subscriptions", subscriptionsRoutes);
@@ -46,6 +44,7 @@ app.use("/api/paymentMethods", paymentMethodRoutes);
 app.use("/api/content-builder", contentBuilderRoutes);
 app.use("/api/content", contentRoutes);
 app.use("/api/media", mediaRoutes);
+app.use("/uploads", express.static("uploads"));
 
 // test
 app.get("/", (req, res) => {

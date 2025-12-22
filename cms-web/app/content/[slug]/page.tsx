@@ -8,12 +8,20 @@ import Topbar from "@/components/Topbar";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
+const normalizeToArray = (value: any): any[] => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    return [value];
+};
+
 export default function ContentEditorPage() {
     const { slug } = useParams();
 
     const [fields, setFields] = useState<any[]>([]);
     const [contentData, setContentData] = useState<Record<string, any>>({});
     const [status, setStatus] = useState("draft");
+    const [mediaPreview, setMediaPreview] =
+        useState<Record<string, string[]>>({});
 
     // 🔹 Ambil field & data konten berdasarkan slug
     useEffect(() => {
@@ -41,6 +49,24 @@ export default function ContentEditorPage() {
         if (slug) fetchContent();
     }, [slug]);
 
+    useEffect(() => {
+        if (!fields.length) return;
+
+        const previews: Record<string, string[]> = {};
+
+        fields.forEach((field) => {
+            if (field.type === "media") {
+                const values = normalizeToArray(contentData[field.name]);
+
+                previews[field.name] = values
+                    .map(resolvePreviewUrl)
+                    .filter(Boolean) as string[];
+            }
+        });
+
+        setMediaPreview(previews);
+    }, [fields, contentData]);
+
     // 🔹 Handle perubahan input field dinamis
     const handleChange = (name: string, value: any) => {
         setContentData((prev) => ({
@@ -51,23 +77,72 @@ export default function ContentEditorPage() {
 
     // 🔹 Simpan ke backend
     const handleSave = async () => {
-        try {
-            const res = await fetch(`http://localhost:4000/api/content/${slug}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    data: contentData,
-                    status,
-                }),
+        const token = localStorage.getItem("token");
+        const formData = new FormData();
+
+        formData.append("status", status);
+
+        Object.entries(contentData).forEach(([key, value]) => {
+            const values = normalizeToArray(value);
+
+            // 🔹 FILE BARU
+            values.forEach((v) => {
+                if (v instanceof File) {
+                    formData.append(key, v);
+                }
             });
 
-            const result = await res.json();
-            if (!res.ok) throw new Error(result.message || "Gagal menyimpan konten");
+            // 🔹 DATA NON-FILE (TEXT, RICHTEXT, NUMBER, URL FILE LAMA)
+            const nonFile = values.filter((v) => !(v instanceof File));
 
-            Swal.fire("Berhasil!", "Konten berhasil disimpan.", "success");
-        } catch (err: any) {
-            Swal.fire("Error", err.message, "error");
+            formData.append(key, JSON.stringify(nonFile.length > 1 ? nonFile : nonFile[0]));
+        });
+
+        await fetch(`http://localhost:4000/api/content/${slug}`, {
+            method: "PUT",
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+        });
+
+        Swal.fire("Berhasil", "Konten disimpan", "success");
+    };
+
+    const resolvePreviewUrl = (item: any) => {
+        if (!item) return null;
+
+        if (typeof item === "string") {
+            return item.startsWith("blob:")
+                ? item
+                : `http://localhost:4000${item}`;
         }
+
+        if (item instanceof File) {
+            return URL.createObjectURL(item);
+        }
+
+        return null;
+    };
+
+    const formatDateTimeLocal = (value: string) => {
+        if (!value) return "";
+        return value.replace(" ", "T").slice(0, 16);
+    };
+
+    const extractLatLng = (url: string) => {
+        if (!url) return null;
+
+        // format ?q=-7.95,112.61
+        const match = url.match(/q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+        if (match) {
+            return {
+                lat: parseFloat(match[1]),
+                lng: parseFloat(match[2]),
+            };
+        }
+
+        return null;
     };
 
     // 🔹 Render field input dinamis berdasarkan tipe
@@ -91,8 +166,7 @@ export default function ContentEditorPage() {
                 return (
                     <input
                         type="number"
-                        className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                        value={value}
+                        value={value !== undefined && value !== null ? String(value) : ""}
                         onChange={(e) => handleChange(field.name, e.target.value)}
                     />
                 );
@@ -101,43 +175,134 @@ export default function ContentEditorPage() {
                 return (
                     <input
                         type="datetime-local"
-                        className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                        value={value}
+                        value={value ? value.replace(" ", "T").slice(0, 16) : ""}
                         onChange={(e) => handleChange(field.name, e.target.value)}
                     />
                 );
 
-            case "media":
-                return (
-                    <input
-                        type="text"
-                        placeholder="URL media..."
-                        className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                        value={value}
-                        onChange={(e) => handleChange(field.name, e.target.value)}
-                    />
-                );
+            case "location": {
+                const loc = value || {};
 
-            case "location":
                 return (
-                    <input
-                        type="text"
-                        placeholder="Masukkan lokasi..."
-                        className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                        value={value}
-                        onChange={(e) => handleChange(field.name, e.target.value)}
-                    />
-                );
+                    <div className="space-y-3">
 
-            default:
-                return (
-                    <input
-                        type="text"
-                        className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                        value={value}
-                        onChange={(e) => handleChange(field.name, e.target.value)}
-                    />
+                        {/* URL INPUT */}
+                        <input
+                            type="text"
+                            placeholder="Nama Tempat (contoh: Warung Pecel Blitar)"
+                            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
+                            value={loc.name || ""}
+                            onChange={(e) =>
+                                handleChange(field.name, {
+                                    ...loc,
+                                    name: e.target.value,
+                                })
+                            }
+                        />
+                        
+                        <input
+                            type="url"
+                            placeholder="Paste URL Google Maps di sini"
+                            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
+                            value={loc.url || ""}
+                            onChange={(e) => {
+                                const url = e.target.value;
+                                const coords = extractLatLng(url);
+
+                                handleChange(field.name, {
+                                    url,
+                                    lat: coords?.lat || null,
+                                    lng: coords?.lng || null,
+                                });
+                            }}
+                        />
+
+                        {/* BUTTON PICK MAP */}
+                        <div className="flex gap-3">
+                            <a
+                                href="https://www.google.com/maps"
+                                target="_blank"
+                                className="text-sm text-blue-600 hover:underline"
+                            >
+                                📍 Pilih dari Google Maps
+                            </a>
+
+                            {loc.url && (
+                                <a
+                                    href={loc.url}
+                                    target="_blank"
+                                    className="text-sm text-green-600 hover:underline"
+                                >
+                                    🔗 Buka Lokasi
+                                </a>
+                            )}
+                        </div>
+
+                        {/* EMBED MAP */}
+                        {loc.lat && loc.lng && (
+                            <iframe
+                                src={`https://www.google.com/maps?q=${loc.lat},${loc.lng}&z=15&output=embed`}
+                                className="w-full h-64 rounded-lg border"
+                                loading="lazy"
+                            />
+                        )}
+                    </div>
                 );
+            }
+
+            case "media": {
+                const previews = mediaPreview[field.name] || [];
+
+                return (
+                    <div className="space-y-3">
+                        {/* PREVIEW */}
+                        <div className="flex gap-3 flex-wrap">
+                            {previews.map((url, idx) => (
+                                <div key={idx} className="relative">
+                                    <img
+                                        src={url}
+                                        className="w-40 h-28 object-cover rounded-md border"
+                                    />
+
+                                    {/* DELETE */}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setContentData((prev) => ({
+                                                ...prev,
+                                                [field.name]: normalizeToArray(prev[field.name]).filter(
+                                                    (_: any, i: number) => i !== idx
+                                                ),
+                                            }));
+                                        }}
+                                        className="absolute -top-2 -right-2 bg-red-600 text-white w-6 h-6 rounded-full text-xs"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* INPUT */}
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+
+                                setContentData((prev) => ({
+                                    ...prev,
+                                    [field.name]: [
+                                        ...normalizeToArray(prev[field.name]),
+                                        file,
+                                    ],
+                                }));
+                            }}
+                        />
+                    </div>
+                );
+            }
         }
     };
 
@@ -165,12 +330,14 @@ export default function ContentEditorPage() {
                                     Belum ada field untuk model ini.
                                 </p>
                             ) : (
-                                fields.map((field) => (
-                                    <div key={field.name}>
+                                fields.map((field, index) => (
+                                    <div key={`${field.name}-${index}`}>
                                         <label className="text-sm font-medium text-slate-600 capitalize">
                                             {field.name}
                                         </label>
-                                        <div className="mt-1">{renderInput(field)}</div>
+                                        <div className="mt-1">
+                                            {renderInput(field)}
+                                        </div>
                                     </div>
                                 ))
                             )}
@@ -187,7 +354,6 @@ export default function ContentEditorPage() {
                                 >
                                     <option value="draft">Draft</option>
                                     <option value="published">Published</option>
-                                    <option value="archived">Archived</option>
                                 </select>
                             </div>
                         </div>

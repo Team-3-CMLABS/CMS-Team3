@@ -57,7 +57,7 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="flex items-center gap-3 p-4 border-b border-slate-100">
         <Image src="/logo.png" alt="Logo" width={36} height={36} />
-        <h1 className="font-semibold text-slate-800 text-lg">CMS Team 3</h1>
+        <h1 className="font-semibold text-slate-800 text-lg">CMS Web Vokasi</h1>
       </div>
 
       {/* Menu utama */}
@@ -74,18 +74,6 @@ export default function Sidebar() {
           Dashboard
         </Link>
 
-        {/* Projects */}
-        <Link
-          href="/projects"
-          className={clsx(
-            "flex items-center gap-3 px-3 py-2 rounded-lg w-full justify-start",
-            isActive("/projects")
-          )}
-        >
-          <FiFolder className="w-5 h-5" />
-          Projects
-        </Link>
-
         {/* Content */}
         <Link
           href="/content"
@@ -98,75 +86,21 @@ export default function Sidebar() {
           Content
         </Link>
 
-        {/* Content Builder (dropdown) */}
+        {/* Content Builder */}
         {(role === "admin" || role === "editor") && (
           <div>
-            <button
-              onClick={() => setBuilderOpen(!builderOpen)}
+            <Link
+              href="/content-builder/single-page"
               className={clsx(
-                "flex items-center justify-between gap-3 px-3 py-2 rounded-lg w-full transition-all duration-200",
+                "flex items-center gap-3 px-3 py-2 rounded-lg w-full transition-all duration-200",
                 pathname.startsWith("/content-builder")
                   ? "bg-blue-100/30 text-blue-600 font-semibold"
                   : "text-slate-600 hover:bg-gray-50 hover:text-slate-600"
               )}
             >
-              <span className="flex items-center gap-3">
-                <FiEdit className="w-5 h-5" />
-                Content Builder
-              </span>
-              {builderOpen ? (
-                <FiChevronUp className="w-4 h-4" />
-              ) : (
-                <FiChevronDown className="w-4 h-4" />
-              )}
-            </button>
-
-            {/* Dropdown submenu */}
-            {builderOpen && (
-              <div className="ml-8 mt-1 space-y-1 transition-all duration-300">
-                <Link
-                  href="/content-builder/single-page"
-                  className={clsx(
-                    "flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-all duration-200",
-                    pathname === "/content-builder/single-page" ||
-                      pathname.startsWith("/content-builder/single-page/")
-                      ? "bg-blue-100/30 text-blue-600 font-semibold"
-                      : "text-slate-600 hover:bg-blue-50 hover:text-blue-600"
-                  )}
-                >
-                  <FiFileText className="w-4 h-4" />
-                  Single Page
-                </Link>
-
-                <Link
-                  href="/content-builder/multi-page"
-                  className={clsx(
-                    "flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-all duration-200",
-                    pathname === "/content-builder/multi-page" ||
-                      pathname.startsWith("/content-builder/multi-page/")
-                      ? "bg-blue-100/30 text-blue-600 font-semibold"
-                      : "text-slate-600 hover:bg-blue-50 hover:text-blue-600"
-                  )}
-                >
-                  <FiLayers className="w-4 h-4" />
-                  Multi Page
-                </Link>
-
-                <Link
-                  href="/content-builder/component"
-                  className={clsx(
-                    "flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-all duration-200",
-                    pathname === "/content-builder/component" ||
-                      pathname.startsWith("/content-builder/component/")
-                      ? "bg-blue-100/30 text-blue-600 font-semibold"
-                      : "text-slate-600 hover:bg-blue-50 hover:text-blue-600"
-                  )}
-                >
-                  <FiGrid className="w-4 h-4" />
-                  Component
-                </Link>
-              </div>
-            )}
+              <FiEdit className="w-5 h-5" />
+              Content Builder
+            </Link>
           </div>
         )}
 

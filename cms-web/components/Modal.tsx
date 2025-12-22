@@ -32,13 +32,17 @@ export default function PageModal({
     setLoading(true);
 
     try {
-      // 🔹 1. Kirim request ke backend
+      const token = localStorage.getItem("token"); // ⬅️ Tambahkan ini
+
       const res = await fetch("http://localhost:4000/api/content-builder/model", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`, // ⬅️ Tambahkan ini
+        },
         body: JSON.stringify({
           name: pageName,
-          type, // "single", "multi", atau "component"
+          type,
           multiLang,
           seo,
           workflow,
@@ -63,7 +67,6 @@ export default function PageModal({
 
       onClose();
 
-      // 🔹 2. Redirect sesuai type
       setTimeout(() => {
         if (type === "multi") {
           router.push(`/content-builder/multi-page/${data.model.slug}`);

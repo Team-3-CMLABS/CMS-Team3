@@ -16,6 +16,7 @@ import Sidebar from "@/components/Sidebar";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
+
 export default function ContentPage() {
   const [contents, setContents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +25,7 @@ export default function ContentPage() {
 
   const router = useRouter();
 
-  const handleAddContent = () => router.push("/content-builder");
+  const handleAddContent = () => router.push("/content-builder/single-page");
 
   // 🔹 Ambil semua data konten
   useEffect(() => {
@@ -69,78 +70,305 @@ export default function ContentPage() {
   });
 
   const handleDetail = async (item: any) => {
-    console.log("🧩 Selected item:", item?.raw ?? item);
-
     try {
       const res = await fetch(`http://localhost:4000/api/content/${item.slug}`);
       const data = await res.json();
 
-      if (!data || !data.content) {
-        Swal.fire("Error", "Konten tidak ditemukan atau data kosong.", "error");
+      if (!data?.content) {
+        Swal.fire("Error", "Konten tidak ditemukan.", "error");
         return;
       }
 
-      const { model, content, fields } = data;
-      const contentData = content?.data
-        ? content.data
-        : content?.raw
-          ? content.raw
-          : content ?? {};
+      const { model, fields, content } = data;
+      const contentData = content?.raw ?? {};
+      const status = content?.status ?? "draft";
 
-      const previewItems =
-        (fields && fields.length > 0
-          ? fields.map((field: any) => ({
-            name: field.name,
-            type: field.type,
-            value: contentData[field.name] ?? contentData[field.name.toLowerCase()] ?? "<i>Belum diisi</i>",
-          }))
-          : Object.keys(contentData).map((key) => ({
-            name: key,
-            type: typeof contentData[key],
-            value: contentData[key],
-          }))) || [];
+      const resolveMediaUrl = (url: string) => {
+        if (!url) return "";
+        if (url.startsWith("http")) return url;
+        return `http://localhost:4000${url}`;
+      };
 
-      const fieldPreview = (fields || [])
+      const rendered = fields
         .map((field: any) => {
+          const value = contentData[field.name];
+          if (value === undefined || value === null || value === "") return "";
 
-          const normalizedKey = field.name
-            .toLowerCase()
-            .replace(/\s+/g, "_")
-            .replace(/[^\w_]/g, "");
+          // ===== TEXT =====
+          if (field.type === "text") {
+            return `
+            <h1 style="
+              font-size: 32px;
+              font-weight: 700;
+              margin-bottom: 16px;
+              color: #1e293b;
+              line-height: 1.3;
+            ">${value}</h1>
+          `;
+          }
 
-          const fieldValue =
-            contentData?.[normalizedKey] ?? contentData?.[field.name];
+          // ===== RICH TEXT =====
+          if (field.type === "richtext") {
+            return `
+            <div style="
+              font-size: 16px;
+              line-height: 1.75;
+              color: #475569;
+              margin-bottom: 24px;
+            ">${value}</div>
+          `;
+          }
 
-          return `
-      <div style="margin-bottom:8px;">
-        <b>${field.name}</b>
-        <small style="color:#666">(${field.type})</small><br/>
-        <span>${fieldValue ? fieldValue : "<i>Belum diisi</i>"}</span>
-      </div>
-    `;
+          // ===== NUMBER =====
+          if (field.type === "number") {
+            return `
+            <div style="
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              padding: 12px 16px;
+              background: #f8fafc;
+              border-left: 3px solid #3b82f6;
+              border-radius: 6px;
+              margin-bottom: 20px;
+            ">
+              <span style="
+                font-size: 14px;
+                font-weight: 600;
+                color: #64748b;
+              ">${field.label}:</span>
+              <span style="
+                font-size: 16px;
+                font-weight: 700;
+                color: #1e293b;
+              ">${value}</span>
+            </div>
+          `;
+          }
+
+          // ===== DATETIME =====
+          if (field.type === "datetime") {
+            const date = new Date(value);
+            const formatted = isNaN(date.getTime())
+              ? value
+              : date.toLocaleString("id-ID", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+
+            return `
+            <div style="
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              padding: 12px 16px;
+              background: #f1f5f9;
+              border-radius: 6px;
+              margin-bottom: 20px;
+            ">
+              <span style="
+                font-size: 14px;
+                font-weight: 600;
+                color: #64748b;
+              ">${field.label}:</span>
+              <span style="
+                font-size: 14px;
+                color: #334155;
+              ">${formatted}</span>
+            </div>
+          `;
+          }
+
+          // ===== LOCATION =====
+          if (field.type === "location") {
+            const name = value?.name || "Lihat Lokasi di Google Maps";
+            const url = value?.url;
+            const lat = value?.lat;
+            const lng = value?.lng;
+
+            if (!url) return "";
+
+            return `
+            <div style="
+              margin-bottom: 32px;
+              padding: 20px;
+              background: #f8fafc;
+              border-radius: 12px;
+              border: 1px solid #e2e8f0;
+            ">
+              <div style="margin-bottom: 16px;">
+                <a 
+                  href="${url}" 
+                  target="_blank"
+                  style="
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 8px 16px;
+                    background: #3b82f6;
+                    color: white;
+                    font-weight: 600;
+                    font-size: 14px;
+                    text-decoration: none;
+                    border-radius: 8px;
+                    transition: background 0.2s;
+                  "
+                  onmouseover="this.style.background='#2563eb'"
+                  onmouseout="this.style.background='#3b82f6'"
+                >
+                  📍 ${name}
+                </a>
+              </div>
+
+              ${lat && lng
+                ? `
+                <iframe
+                  src="https://www.google.com/maps?q=${lat},${lng}&z=15&output=embed"
+                  style="
+                    width: 100%;
+                    height: 320px;
+                    border-radius: 8px;
+                    border: 0;
+                  "
+                  loading="lazy"
+                ></iframe>
+              `
+                : ""
+              }
+            </div>
+          `;
+          }
+
+          // ===== MEDIA =====
+          if (field.type === "media") {
+            let urls: string[] = [];
+
+            if (typeof value === "string") {
+              urls = [resolveMediaUrl(value)];
+            } else if (Array.isArray(value)) {
+              urls = value.map((v) =>
+                typeof v === "string"
+                  ? resolveMediaUrl(v)
+                  : resolveMediaUrl(v?.url || v?.path)
+              );
+            } else if (typeof value === "object") {
+              urls = [resolveMediaUrl(value.url || value.path)];
+            }
+
+            return urls
+              .map(
+                (url) => `
+                <div style="
+                  margin-bottom: 24px;
+                  border-radius: 12px;
+                  overflow: hidden;
+                  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+                ">
+                  <img 
+                    src="${url}"
+                    style="
+                      width: 100%;
+                      max-height: 500px;
+                      object-fit: cover;
+                      display: block;
+                    "
+                  />
+                </div>
+              `
+              )
+              .join("");
+          }
+
+          return "";
         })
         .join("");
 
       Swal.fire({
-        title: `${model?.name ?? "Unknown Model"} — Detail`,
-        html: `
-        <div style="text-align:left; padding:10px">
-          <h3>🧱 Model Info</h3>
-          <p><b>Slug:</b> ${model?.slug ?? "-"}</p>
-          <p><b>Type:</b> ${model?.type ?? "-"}</p>
-          <p><b>Status:</b> ${content?.status ?? "draft"}</p>
-          <hr style="margin:10px 0"/>
-          <h3>📄 Fields & Content</h3>
-          ${fieldPreview || "<i>Tidak ada data yang bisa ditampilkan</i>"}
-        </div>
-      `,
-        width: 600,
+        title: "Preview Halaman",
+        width: 900,
+        padding: "0",
+        showCloseButton: true,
         confirmButtonText: "Tutup",
         confirmButtonColor: "#3b82f6",
+        customClass: {
+          popup: "preview-modal",
+          htmlContainer: "preview-content",
+        },
+        html: `
+        <div style="
+          max-height: 75vh;
+          overflow-y: auto;
+          background: #ffffff;
+        ">
+          <!-- Header dengan Status Badge -->
+          <div style="
+            position: sticky;
+            top: 0;
+            background: linear-gradient(to bottom, #ffffff 0%, #ffffff 90%, transparent 100%);
+            padding: 24px 40px 16px;
+            z-index: 10;
+            border-bottom: 1px solid #e2e8f0;
+          ">
+            <span style="
+              display: inline-block;
+              padding: 6px 14px;
+              border-radius: 6px;
+              font-size: 11px;
+              font-weight: 700;
+              letter-spacing: 0.5px;
+              background: ${status === "published" ? "#dcfce7" : "#fef3c7"};
+              color: ${status === "published" ? "#166534" : "#92400e"};
+              border: 1px solid ${status === "published" ? "#bbf7d0" : "#fde68a"};
+            ">
+              ${status.toUpperCase()}
+            </span>
+          </div>
+
+          <!-- Content Area -->
+          <article style="
+            padding: 32px 40px 40px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            text-align: left;
+          ">
+            ${rendered || `
+              <div style="
+                padding: 40px;
+                text-align: center;
+                color: #94a3b8;
+                font-style: italic;
+              ">
+                Konten belum diisi
+              </div>
+            `}
+          </article>
+
+          <!-- Footer -->
+          <div style="
+            padding: 20px 40px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            font-size: 13px;
+            color: #64748b;
+          ">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM4.5 7.5a.5.5 0 0 0 0 1h5.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5H4.5z"/>
+              </svg>
+              <span>
+                Preview dari model <strong style="color: #334155;">${model?.name}</strong> 
+                <span style="color: #94a3b8;">(${model?.slug})</span>
+              </span>
+            </div>  
+          </div>
+        </div>
+      `,
       });
     } catch (err) {
-      console.error("❌ Detail error:", err);
-      Swal.fire("Error", "Gagal menampilkan detail.", "error");
+      console.error(err);
+      Swal.fire("Error", "Gagal menampilkan preview halaman.", "error");
     }
   };
 
@@ -208,16 +436,36 @@ export default function ContentPage() {
 
                 {/* Filter */}
                 <div className="relative">
-                  <Filter className="absolute left-3 top-2.5 text-gray-400" size={16} />
+                  <Filter
+                    className="absolute left-3 top-2.5 text-gray-400"
+                    size={16}
+                  />
+
                   <select
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
-                    className="pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-blue-400 outline-none appearance-none"
+                    className="pl-9 pr-9 py-2 border border-gray-300 rounded-md text-sm bg-white 
+  focus:ring-2 focus:ring-blue-400 outline-none appearance-none"
                   >
-                    <option>All</option>
-                    <option>Published</option>
-                    <option>Draft</option>
+                    <option value="All">All</option>
+                    <option value="published">Published</option>
+                    <option value="draft">Draft</option>
                   </select>
+
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="absolute right-3 top-3 h-4 w-4 text-gray-400 pointer-events-none"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
                 </div>
 
                 {/* Add Content */}

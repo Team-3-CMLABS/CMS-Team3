@@ -45,7 +45,13 @@ export default function SinglePageHome() {
   useEffect(() => {
     const fetchModel = async () => {
       try {
-        const res = await fetch(`http://localhost:4000/api/content-builder/content/${slug}`);
+        const token = localStorage.getItem("token");
+
+        const res = await fetch(`http://localhost:4000/api/content-builder/content/${slug}`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
         const data = await res.json();
 
         if (!res.ok || !data.model) {
@@ -76,9 +82,14 @@ export default function SinglePageHome() {
     }
 
     try {
+      const token = localStorage.getItem("token");
+
       const res = await fetch("http://localhost:4000/api/content-builder/field", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
         body: JSON.stringify({
           model_id: modelId,
           label: type.charAt(0).toUpperCase() + type.slice(1),
@@ -109,8 +120,13 @@ export default function SinglePageHome() {
 
     try {
       const field = fields[index];
+      const token = localStorage.getItem("token");
+
       await fetch(`http://localhost:4000/api/content-builder/field/${field.id}`, {
         method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
       });
 
       setFields(fields.filter((_, i) => i !== index));
@@ -195,14 +211,14 @@ export default function SinglePageHome() {
                   whileHover={{ scale: 1.01 }}
                   onClick={() => handleFieldClick(field)}
                   className={`flex justify-between items-center border rounded-lg p-4 cursor-pointer transition-all ${selectedField?.id === field.id
-                      ? "bg-blue-50 border-blue-400"
-                      : "bg-white hover:bg-slate-50"
+                    ? "bg-blue-50 border-blue-400"
+                    : "bg-white hover:bg-slate-50"
                     }`}
                 >
                   <div className="flex items-center gap-4">
                     <div className="p-2 bg-slate-50 rounded-lg shadow-sm">
                       {getFieldIcon(field.field_type)}
-                    </div> 
+                    </div>
                     <div>
                       <p className="text-sm font-semibold text-slate-800 leading-tight">
                         {field.field_name || "Untitled Field"}
@@ -272,7 +288,12 @@ export default function SinglePageHome() {
             setShowEditModal(false);
             Swal.fire("Updated", "Field updated successfully!", "success");
             // refresh field list
-            fetch(`http://localhost:4000/api/content-builder/content/${slug}`)
+            const token = localStorage.getItem("token");
+            fetch(`http://localhost:4000/api/content-builder/content/${slug}`, {
+              headers: {
+                "Authorization": `Bearer ${token}`,
+              }
+            })
               .then((res) => res.json())
               .then((data) => setFields(data.fields));
           }}

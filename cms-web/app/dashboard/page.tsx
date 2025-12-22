@@ -10,23 +10,15 @@ export default function Dashboard() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
 
-  interface Collaborator {
+  interface Content {
     id: number;
-    name: string;
-    email?: string;
-    posisi?: string;
-    status?: string;
+    model: string;
+    slug: string;
+    status: string;
+    editor_email?: string;
   }
 
-  interface Project {
-    id: number;
-    name: string;
-    status?: string;
-    last_update?: string;
-    collaborators?: Collaborator[];
-  }
-
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [content, setContent] = useState<Content[]>([]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -37,25 +29,25 @@ export default function Dashboard() {
       setAuthorized(true);
     }
 
-    const fetchProjects = async () => {
+    const fetchContent = async () => {
       try {
-        const token = localStorage.getItem("token");
-
-        const res = await fetch("http://localhost:4000/api/projects", {
+        const res = await fetch("http://localhost:4000/api/content", {
           headers: {
-            "Authorization": `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         });
 
         const result = await res.json();
-        setProjects(Array.isArray(result) ? result : []);
+        console.log("CONTENT RESPONSE:", result);
+
+        setContent(Array.isArray(result?.contents) ? result.contents : []);
       } catch (err) {
-        console.error("Gagal mengambil data project:", err);
-        setProjects([]);
+        console.error("Gagal mengambil data content:", err);
+        setContent([]);
       }
     };
 
-    fetchProjects();
+    fetchContent();
   }, [router]);
 
   if (!authorized) return <p className="text-center mt-10">Loading...</p>;
@@ -108,83 +100,107 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* === ACTIVITY & ORGANIZATION === */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {/* === ACTIVITY & CONTENT === */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Recently Activity */}
-        <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm p-5 hover:shadow-md transition-all duration-200">
+        <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm p-4 hover:shadow-md transition-all duration-200">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-slate-800 flex items-center gap-2">
+            <h2 className="font-semibold text-slate-800 flex items-center gap-2 text-sm">
               <Clock className="w-4 h-4 text-slate-500" />
               Recently Activity
             </h2>
-            <span className="text-xs text-slate-400 hover:text-slate-600 cursor-pointer transition">
-              View all
+            <span className="text-xs text-slate-400 hover:text-blue-600 cursor-pointer transition">
+              View all →
             </span>
           </div>
-          <ul className="divide-y divide-slate-100">
+
+          <ul className="space-y-1.5">
             {activities.map((act, i) => (
               <li
                 key={i}
-                className="flex items-start justify-between py-3 hover:bg-slate-50/70 rounded-lg px-2 transition-all duration-200"
+                className="group flex items-start gap-3 p-2.5 rounded-lg
+                     border border-slate-100
+                     hover:bg-slate-50 hover:border-blue-200
+                     transition-all duration-200"
               >
-                <div className="flex items-start gap-3 text-sm text-slate-700">
-                  <div className="flex-shrink-0 mt-[2px]">{act.icon}</div>
-                  <p
-                    className="leading-snug"
-                    dangerouslySetInnerHTML={{ __html: act.text }}
-                  />
+                {/* Icon */}
+                <div className="w-8 h-8 flex items-center justify-center rounded-md bg-slate-100 group-hover:bg-blue-100">
+                  {act.icon}
                 </div>
-                <span className="text-xs text-slate-400 whitespace-nowrap">
-                  {act.time}
-                </span>
+
+                {/* Text */}
+                <div className="flex-1 text-xs text-slate-700">
+                  <p
+                    dangerouslySetInnerHTML={{ __html: act.text }}
+                    className="leading-snug"
+                  />
+                  <span className="block mt-0.5 text-[11px] text-slate-400">
+                    {act.time}
+                  </span>
+                </div>
               </li>
             ))}
           </ul>
         </div>
 
-        {/* Projects List */}
-        <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm p-5 hover:shadow-md transition-all duration-200">
+        {/* Content List */}
+        <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm p-4 hover:shadow-md transition-all duration-200">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-slate-800 flex items-center gap-2">
-              <Users className="w-4 h-4 text-slate-500" />
-              List Project
+            <h2 className="font-semibold text-slate-800 flex items-center gap-2 text-sm">
+              <FileText className="w-4 h-4 text-slate-500" />
+              List Content
             </h2>
             <span
-              className="text-xs text-slate-400 hover:text-slate-600 cursor-pointer transition"
-              onClick={() => router.push("/projects")}
+              className="text-xs text-slate-400 hover:text-blue-600 cursor-pointer transition"
+              onClick={() => router.push("/content")}
             >
-              Manage
+              Manage →
             </span>
           </div>
-          <ul className="divide-y divide-slate-100">
-            {projects.length > 0 ? (
-              projects.map((proj) => (
+
+          <ul className="space-y-1.5">
+            {content.length > 0 ? (
+              content.map((item) => (
                 <li
-                  key={proj.id}
-                  className="flex justify-between items-center py-3 px-2 hover:bg-slate-50/70 rounded-lg transition-all duration-200"
+                  key={item.id}
+                  className="group flex justify-between items-center p-2.5 rounded-lg
+                       border border-slate-100
+                       hover:bg-blue-50/40 hover:border-blue-200
+                       transition-all duration-200"
                 >
                   <div>
-                    <p className="font-medium text-slate-800">{proj.name || "-"}</p>
-                    <p className="text-xs text-slate-500">
-                      {proj.collaborators?.length || 0} collaborators
+                    <p className="text-sm font-medium text-slate-800 leading-tight">
+                      {item.model}
                     </p>
+                    <span
+                      className={`inline-block mt-0.5 text-[10px] px-2 py-0.5 rounded-full
+                ${item.status === "published"
+                          ? "bg-green-100 text-green-600"
+                          : "bg-yellow-100 text-yellow-600"
+                        }`}
+                    >
+                      {item.status}
+                    </span>
                   </div>
+
                   <button
-                    className="text-xs font-medium text-blue-600 hover:text-blue-700 transition"
-                    onClick={() => router.push(`/projects/detail-projects?id=${proj.id}`)}
+                    onClick={() => router.push(`/content/${item.slug}`)}
+                    className="text-[11px] px-3 py-1 rounded-full
+                         bg-blue-600 text-white
+                         hover:bg-blue-700 transition"
                   >
                     View →
                   </button>
                 </li>
               ))
             ) : (
-              <li className="text-center text-sm text-gray-400 py-3">
-                No projects available
+              <li className="text-center text-xs text-slate-400 py-6">
+                No content available
               </li>
             )}
           </ul>
         </div>
       </div>
-    </main>
+    </main >
   );
 }

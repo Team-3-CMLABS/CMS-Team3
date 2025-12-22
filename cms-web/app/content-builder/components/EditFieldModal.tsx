@@ -23,11 +23,17 @@ export default function EditFieldModal({ fieldId, onClose, onSave }: any) {
 
     const handleSave = async () => {
         try {
+            const token = localStorage.getItem("token");
+
             const res = await fetch(`http://localhost:4000/api/content-builder/field/${fieldId}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
+                },
                 body: JSON.stringify(fieldData),
             });
+
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || "Gagal update field");
 

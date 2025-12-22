@@ -4,13 +4,13 @@ import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
 import { Button } from "@/components/ui/button";
-import { Filter, Trash2, PencilIcon, Search } from "lucide-react";
+import { Filter, Trash2, PencilIcon, Search, X } from "lucide-react";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
 export default function CollaboratorsPage() {
     const [collaborators, setCollaborators] = useState<any[]>([]);
-    const [projects, setProjects] = useState<any[]>([]);
+    const [models, setModels] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [filterType, setFilterType] = useState("All");
@@ -24,38 +24,26 @@ export default function CollaboratorsPage() {
     const fetchCollaborators = async () => {
         try {
             setLoading(true);
-            const res = await fetch("http://localhost:4000/api/collaborators");
-            const result = await res.json();
-
-            const arrayData = result.data;
-            if (!Array.isArray(arrayData)) {
-                console.error("Format data API tidak sesuai:", result);
-                return;
-            }
-
-            const sortedData = arrayData.sort((a: any, b: any) => a.id - b.id);
-            setCollaborators(sortedData);
+            const res = await fetch("http://localhost:4000/api/collaborators/all-users");
+            const json = await res.json();
+            setCollaborators(json.data || []);
         } catch (err) {
-            console.error("Gagal memuat data:", err);
+            console.error(err);
         } finally {
             setLoading(false);
         }
     };
 
-    // ✅ Fetch Projects untuk dropdown
-    const fetchProjects = async () => {
-        try {
-            const res = await fetch("http://localhost:4000/api/collaborators/projects");
-            const result = await res.json();
-            setProjects(result.data || []);
-        } catch (err) {
-            console.error("Gagal memuat projects:", err);
-        }
+    // ✅ Fetch Models untuk dropdown
+    const fetchModels = async () => {
+        const res = await fetch("http://localhost:4000/api/collaborators/content-models");
+        const json = await res.json();
+        setModels(json.data || []);
     };
 
     useEffect(() => {
         fetchCollaborators();
-        fetchProjects();
+        fetchModels();
     }, []);
 
     const handleDelete = async (id: number) => {
@@ -75,39 +63,46 @@ export default function CollaboratorsPage() {
         }
     };
 
-    const handleEdit = (collab: any) => {
+    const handleEdit = (user: any) => {
         setSelected({
-            ...collab,
-            projects: collab.projects?.map((p: any) => p.id) || [],
+            ...user,
+            models: user.models?.map((m: any) => m.id) || [],
         });
         setShowModal(true);
     };
 
     const handleSaveEdit = async () => {
-        try {
-            const res = await fetch(`http://localhost:4000/api/collaborators/${selected.id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    posisi: selected.posisi,
-                    status: selected.status,
-                    project_ids: selected.projects || [],
-                }),
-            });
+        const isNew = !selected.id;
 
-            const result = await res.json();
+        const url = isNew
+            ? "http://localhost:4000/api/collaborators"
+            : `http://localhost:4000/api/collaborators/${selected.id}`;
 
-            if (!res.ok) {
-                Swal.fire("Error", result.message || "Gagal memperbarui data", "error");
-                return;
-            }
+        const method = isNew ? "POST" : "PUT";
 
-            Swal.fire("Berhasil", "Data collaborator diperbarui", "success");
-            await fetchCollaborators();
-            setShowModal(false);
-        } catch (err) {
-            Swal.fire("Error", "Gagal memperbarui data", "error");
+        const payload = {
+            user_id: selected.user_id,
+            posisi: selected.posisi,
+            status: selected.status,
+            model_ids: selected.models || [],
+        };
+
+        const res = await fetch(url, {
+            method,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+
+        const result = await res.json();
+
+        if (!res.ok) {
+            Swal.fire("Error", result.message, "error");
+            return;
         }
+
+        Swal.fire("Success", "Data collaborator disimpan", "success");
+        fetchCollaborators();
+        setShowModal(false);
     };
 
     const filteredCollaborators = collaborators.filter((c) => {
@@ -187,8 +182,8 @@ export default function CollaboratorsPage() {
                         {/* Info Banner */}
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                             <p className="text-sm text-blue-800">
-                                💡 <strong>Info:</strong> Users with the <span className="font-semibold">editor</span> role are automatically added to the collaborator table.
-                                You can manage project assignments here.
+                                💡 <strong>Info:</strong> Users with the <span className="font-semibold">editor</span> and <span className="font-semibold">admin</span> role are automatically added to the collaborator table.
+                                You can manage content model assignments here.
                             </p>
                         </div>
 
@@ -200,7 +195,7 @@ export default function CollaboratorsPage() {
                                     <thead className="bg-slate-100 text-slate-700">
                                         <tr className="text-left">
                                             <th className="py-3 px-4 text-center w-[25%]">Collaborator</th>
-                                            <th className="py-3 px-4 text-center w-[20%]">Project</th>
+                                            <th className="py-3 px-4 text-center w-[20%]">Content Model</th>
                                             <th className="py-3 px-4 text-center w-[15%]">Position</th>
                                             <th className="py-3 px-4 text-center w-[15%]">Status</th>
                                             <th className="py-3 px-4 text-center w-[15%]">Action</th>
@@ -209,36 +204,48 @@ export default function CollaboratorsPage() {
                                     <tbody>
                                         {filteredCollaborators.map((c) => (
                                             <tr
-                                                key={c.id}
+                                                key={c.user_id}
                                                 className="border-t border-slate-200 hover:bg-blue-50 transition-all"
                                             >
                                                 {/* Nama + badge + email */}
                                                 <td className="py-3 px-4 text-center">
                                                     <div className="flex flex-col items-center gap-1">
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-2 flex-wrap justify-center">
                                                             <span className="font-medium text-slate-800">{c.name}</span>
+
+                                                            {/* Badge Posisi */}
                                                             <span
                                                                 className={`text-xs font-semibold px-2 py-1 rounded-full ${c.posisi === "Owner"
                                                                     ? "bg-green-100 text-green-800"
-                                                                    : c.posisi === "Collaborator"
-                                                                        ? "bg-yellow-100 text-yellow-800"
-                                                                        : "bg-gray-100 text-gray-800"
+                                                                    : "bg-yellow-100 text-yellow-800"
                                                                     }`}
                                                             >
                                                                 {c.posisi}
                                                             </span>
+
+                                                            {/* Badge Role */}
+                                                            {c.role && (
+                                                                <span
+                                                                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide ${c.role === "admin"
+                                                                            ? "bg-blue-100 text-blue-700"
+                                                                            : "bg-purple-100 text-purple-700"
+                                                                        }`}
+                                                                >
+                                                                    {c.role}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                         <p className="text-xs text-gray-500">{c.email}</p>
                                                     </div>
                                                 </td>
 
-                                                {/* Project */}
+                                                {/* Models */}
                                                 <td className="py-3 px-4 text-center">
-                                                    {c.projects && c.projects.length > 0 ? (
+                                                    {c.models && c.models.length > 0 ? (
                                                         <div className="flex flex-wrap justify-center gap-1">
-                                                            {c.projects.map((p: any) => (
+                                                            {c.models.map((p: any) => (
                                                                 <span
-                                                                    key={p.id}
+                                                                    key={`model-${p.id}`}
                                                                     className="inline-block bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-medium"
                                                                 >
                                                                     {p.name}
@@ -298,9 +305,20 @@ export default function CollaboratorsPage() {
                     {showModal && (
                         <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
                             <div className="bg-white w-[90%] max-w-md md:max-w-lg lg:max-w-xl rounded-xl shadow-lg p-6 overflow-y-auto max-h-[90vh]">
-                                <h2 className="text-lg font-semibold mb-4 text-slate-800">
-                                    Edit Collaborator
-                                </h2>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-lg font-semibold text-slate-800">
+                                        Edit Collaborator
+                                    </h2>
+
+                                    {/* Close Button */}
+                                    <button
+                                        onClick={() => setShowModal(false)}
+                                        className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition"
+                                        aria-label="Close modal"
+                                    >
+                                        <X size={18} />
+                                    </button>
+                                </div>
 
                                 {/* Info User */}
                                 <div className="bg-gray-50 p-3 rounded-lg mb-4">
@@ -345,38 +363,38 @@ export default function CollaboratorsPage() {
 
                                     <div>
                                         <label className="text-sm font-medium text-slate-700 mb-2 block">
-                                            Assign Projects
+                                            Assign Models
                                         </label>
 
                                         <div className="border border-slate-200 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
-                                            {projects.length > 0 ? (
-                                                projects.map((proj) => (
+                                            {models.length > 0 ? (
+                                                models.map((proj) => (
                                                     <label
-                                                        key={proj.id}
+                                                        key={`assign-${proj.id}`}
                                                         className="flex items-center justify-between bg-slate-50 hover:bg-slate-100 px-3 py-2 rounded-md cursor-pointer transition"
                                                     >
                                                         <div className="flex items-center space-x-2">
                                                             <input
                                                                 type="checkbox"
                                                                 checked={
-                                                                    selected?.projects?.some(
+                                                                    selected?.models?.some(
                                                                         (p: any) => p.id === proj.id || p === proj.id
                                                                     ) || false
                                                                 }
                                                                 onChange={(e) => {
                                                                     const checked = e.target.checked;
-                                                                    const current = selected?.projects || [];
+                                                                    const current = selected?.models || [];
                                                                     const updated = checked
                                                                         ? [...current, proj.id]
                                                                         : current.filter((id: any) => id !== proj.id);
-                                                                    setSelected({ ...selected, projects: updated });
+                                                                    setSelected({ ...selected, models: updated });
                                                                 }}
                                                                 className="w-4 h-4 accent-blue-500 cursor-pointer"
                                                             />
                                                             <span className="text-sm text-slate-700">{proj.name}</span>
                                                         </div>
 
-                                                        {selected?.projects?.some(
+                                                        {selected?.models?.some(
                                                             (p: any) => p.id === proj.id || p === proj.id
                                                         ) && (
                                                                 <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">
@@ -387,13 +405,13 @@ export default function CollaboratorsPage() {
                                                 ))
                                             ) : (
                                                 <p className="text-sm text-slate-500 text-center py-2">
-                                                    No projects available
+                                                    No models available
                                                 </p>
                                             )}
                                         </div>
 
                                         <p className="text-xs text-gray-500 mt-2">
-                                            Pilih project yang ingin diassign ke collaborator ini.
+                                            Pilih models yang ingin diassign ke collaborator ini.
                                         </p>
                                     </div>
                                 </div>

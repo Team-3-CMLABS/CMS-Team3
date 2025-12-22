@@ -23,11 +23,8 @@ export default function AddFieldModal({
   const fields = [
     { id: "text", icon: <FiType className="text-blue-500 w-5 h-5" />, title: "Text Field", desc: "Used for short free text, such as titles, names, or tags." },
     { id: "media", icon: <FiImage className="text-purple-500 w-5 h-5" />, title: "Media Field", desc: "Upload and manage images, videos, documents." },
-    { id: "number", icon: <FiHash className="text-green-500 w-5 h-5" />, title: "Number", desc: "Numeric input, prices, quantities." },
     { id: "datetime", icon: <FiClock className="text-orange-500 w-5 h-5" />, title: "Date and Time", desc: "Date/time with formatting." },
     { id: "location", icon: <FiMapPin className="text-rose-500 w-5 h-5" />, title: "Location", desc: "Location or long text fields." },
-    { id: "multiple", icon: <FiLayers className="text-sky-500 w-5 h-5" />, title: "Multiple Content", desc: "Repeatable content blocks." },
-    { id: "relation", icon: <FiLink className="text-yellow-500 w-5 h-5" />, title: "Relations", desc: "Link records between collections." },
     { id: "richtext", icon: <FiEdit3 className="text-pink-500 w-5 h-5" />, title: "Rich Text", desc: "For formatted text content such as body, descriptions, or articles." },
   ];
 
