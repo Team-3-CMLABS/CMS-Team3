@@ -12,12 +12,12 @@ export default function SinglePageList() {
   const [pages, setPages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [canCreateSingle, setCanCreateSingle] = useState(false);
 
   // 🔹 Ambil data Single Page dari DB
   const fetchPages = async () => {
     try {
       const token = localStorage.getItem("token");
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
 
       const res = await fetch("http://localhost:4000/api/content-builder?type=single", {
         headers: { Authorization: `Bearer ${token}` },
@@ -35,14 +35,6 @@ export default function SinglePageList() {
       // 🔹 Filter hanya type single
       let filtered = list.filter((item: any) => item.type === "single");
 
-      // 🔹 Kalau user role = editor, hanya tampilkan yang dia buat
-      if (user.role === "editor" && user.email) {
-        filtered = filtered.filter(
-          (page: any) =>
-            page.editor_email === user.email // cek yang dia buat
-        );
-      }
-
       setPages(filtered);
     } catch (err) {
       console.error("Gagal memuat single page:", err);
@@ -53,6 +45,30 @@ export default function SinglePageList() {
   };
 
   useEffect(() => {
+    const fetchPermission = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      try {
+        const res = await fetch(
+          "http://localhost:4000/api/me/content-permission",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+        setCanCreateSingle(data.canAddContent === true);
+      } catch (err) {
+        console.error("permission error:", err);
+      }
+    };
+
+    fetchPermission();
     fetchPages();
   }, []);
 
@@ -96,12 +112,14 @@ export default function SinglePageList() {
     <div className="p-8 relative">
       <div className="flex justify-between items-center mb-8">
         <h2 className="text-2xl font-bold text-slate-900">Single Page Home</h2>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-md transition"
-        >
-          <FiPlus /> Create Single Page
-        </button>
+        {canCreateSingle && (
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-md transition"
+          >
+            <FiPlus /> Create Single Page
+          </button>
+        )}
       </div>
 
       {/* 🔹 Grid List */}

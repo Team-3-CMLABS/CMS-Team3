@@ -35,48 +35,56 @@ export const verifyToken = (req, res, next) => {
 // 🧩 GET ALL MODELS + CONTENT (FILTER BY ROLE)
 router.get("/", verifyToken, async (req, res) => {
     try {
-        const { role, email } = req.user;
+        const { role, email, id } = req.user;
         const { type } = req.query;
 
         let query = `
-      SELECT 
-        m.id,
-        m.name AS model,
-        m.slug,
-        m.type,
-        m.api_endpoint,
-        m.editor_email AS model_editor,   
-        c.id AS content_id,
-        c.status,
-        c.editor_email AS content_editor, 
-        c.created_at
+      SELECT DISTINCT
+  m.id,
+  m.name AS model,
+  m.slug,
+  m.type,
+  m.api_endpoint,
+  m.editor_email AS model_editor,
+  m.created_at AS model_created_at,
+  c.id AS content_id,
+  c.status,
+  c.editor_email AS content_editor,
+  c.created_at
       FROM content_models m
       LEFT JOIN contents c ON c.model_id = m.id
+      LEFT JOIN model_collaborators mc ON mc.model_id = m.id
+      LEFT JOIN collaborators col ON col.id = mc.collaborator_id
     `;
 
-        let params = [];
+        const conditions = [];
+        const params = [];
 
         if (type) {
-            query += " AND m.type = ?";
+            conditions.push("m.type = ?");
             params.push(type);
         }
 
-        // 🔹 Role filter
         if (role === "editor") {
-            query += `
-        WHERE 
-          m.editor_email = ? 
+            conditions.push(`
+        (
+          m.editor_email = ?
           OR c.editor_email = ?
-      `;
-            params.push(email, email);
+          OR (col.user_id = ? AND col.status = 'Active')
+        )
+      `);
+            params.push(email, email, id);
+        }
+
+        if (conditions.length) {
+            query += " WHERE " + conditions.join(" AND ");
         }
 
         query += " ORDER BY m.created_at DESC";
 
         const [rows] = await pool.query(query, params);
 
-        // 🧩 Format biar FE gampang pakai
-        const formatted = rows.map((r) => ({
+        const formatted = rows.map(r => ({
             id: r.id,
             model: r.model,
             slug: r.slug,
@@ -94,9 +102,36 @@ router.get("/", verifyToken, async (req, res) => {
     }
 });
 
+// 🧩 HELPER FUNCTION
+const canManageContent = async (user) => {
+    if (user.role === "admin") return true;
+
+    if (user.role === "editor") {
+        const [rows] = await pool.query(
+            `SELECT posisi FROM collaborators WHERE email = ? LIMIT 1`,
+            [user.email]
+        );
+
+        if (!rows.length) return false;
+        return rows[0].posisi === "Owner";
+    }
+
+    return false;
+};
+
 // 🧩 CREATE MODEL
 router.post("/model", verifyToken, async (req, res) => {
+    if (req.user.role !== "admin" && !isOwner(req.user.id)) {
+        return res.status(403).json({ message: "Tidak punya izin" });
+    }
     try {
+        const allowed = await canManageContent(req.user);
+        if (!allowed) {
+            return res.status(403).json({
+                message: "Anda tidak memiliki izin untuk membuat model",
+            });
+        }
+
         const { name, type, multiLang = false, seo = false, workflow = false } = req.body;
         const editorEmail = req.user.email; // 🧩 ambil dari token login
 
@@ -134,6 +169,13 @@ router.post("/model", verifyToken, async (req, res) => {
 // 🧩 UPDATE MODEL (konfigurasi)
 router.put("/model/:id", async (req, res) => {
     try {
+        const allowed = await canManageContent(req.user);
+        if (!allowed) {
+            return res.status(403).json({
+                message: "Anda tidak memiliki izin untuk memperbarui model",
+            });
+        }
+
         const { id } = req.params;
         const { name, type, multiLang, seo, workflow } = req.body;
 
@@ -273,7 +315,7 @@ router.put("/field/:id", verifyToken, async (req, res) => {
                 field_key,
                 field_type,
                 is_required ? 1 : 0,
-                req.user.email, 
+                req.user.email,
                 order || 0,
                 id,
             ]

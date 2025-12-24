@@ -22,10 +22,6 @@ router.get("/all-users", async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    /* ===============================
-       AUTO REGISTER OWNER
-    =============================== */
-
     // 1️⃣ Insert owner ke collaborators jika belum ada
     const [owners] = await conn.query(`
       SELECT DISTINCT
@@ -34,8 +30,8 @@ router.get("/all-users", async (req, res) => {
         u.email
       FROM content_models cm
       JOIN users u
-        ON u.email COLLATE utf8mb4_0900_ai_ci
-         = cm.editor_email COLLATE utf8mb4_0900_ai_ci
+        ON u.email COLLATE utf8mb4_general_ci
+         = cm.editor_email COLLATE utf8mb4_general_ci
       LEFT JOIN collaborators c ON c.user_id = u.id_user
       WHERE cm.editor_email IS NOT NULL
         AND c.id IS NULL
@@ -58,8 +54,8 @@ router.get("/all-users", async (req, res) => {
         c.id AS collaborator_id
       FROM content_models cm
       JOIN users u
-        ON u.email COLLATE utf8mb4_0900_ai_ci
-         = cm.editor_email COLLATE utf8mb4_0900_ai_ci
+        ON u.email COLLATE utf8mb4_general_ci
+         = cm.editor_email COLLATE utf8mb4_general_ci
       JOIN collaborators c ON c.user_id = u.id_user
       LEFT JOIN model_collaborators mc
         ON mc.collaborator_id = c.id
@@ -79,10 +75,6 @@ router.get("/all-users", async (req, res) => {
     }
 
     await conn.commit();
-
-    /* ===============================
-       QUERY UTAMA (TETAP)
-    =============================== */
 
     const [rows] = await conn.query(`
       SELECT
@@ -107,8 +99,8 @@ router.get("/all-users", async (req, res) => {
         SELECT DISTINCT editor_email
         FROM content_models
       ) cm_owner
-        ON cm_owner.editor_email COLLATE utf8mb4_0900_ai_ci
-         = u.email COLLATE utf8mb4_0900_ai_ci
+        ON cm_owner.editor_email COLLATE utf8mb4_general_ci
+         = u.email COLLATE utf8mb4_general_ci
 
       LEFT JOIN model_collaborators mc ON c.id = mc.collaborator_id
       LEFT JOIN content_models m ON mc.model_id = m.id
@@ -239,51 +231,93 @@ router.put("/:id", async (req, res) => {
   const { posisi, status, model_ids } = req.body;
   const { id } = req.params;
   const conn = await db.getConnection();
+
   try {
     await conn.beginTransaction();
 
+    // 1️⃣ Update posisi & status
     const updates = [];
     const values = [];
-    if (posisi) { updates.push("posisi=?"); values.push(posisi); }
-    if (status) { updates.push("status=?"); values.push(status); }
-    if (updates.length > 0) {
-      values.push(id);
-      await conn.query(`UPDATE collaborators SET ${updates.join(", ")} WHERE id=?`, values);
+
+    if (posisi) {
+      updates.push("posisi = ?");
+      values.push(posisi);
+    }
+    if (status) {
+      updates.push("status = ?");
+      values.push(status);
     }
 
-    // Ambil email collaborator
+    if (updates.length > 0) {
+      values.push(id);
+      await conn.query(
+        `UPDATE collaborators SET ${updates.join(", ")} WHERE id = ?`,
+        values
+      );
+    }
+
+    // 2️⃣ Ambil data collaborator
     const [[collab]] = await conn.query(
       "SELECT email, posisi FROM collaborators WHERE id = ?",
       [id]
     );
 
-    // JIKA OWNER → CLAIM MODEL
-    if (collab?.posisi === "Owner" && Array.isArray(model_ids)) {
+    if (!collab) {
+      throw new Error("Collaborator tidak ditemukan");
+    }
+
+    // 3️⃣ Sinkron model_collaborators (REMOVE + ADD)
+    if (Array.isArray(model_ids)) {
+      await conn.query(
+        "DELETE FROM model_collaborators WHERE collaborator_id = ?",
+        [id]
+      );
+
+      if (model_ids.length > 0) {
+        const values = model_ids.map((mid) => [id, mid]);
+        await conn.query(
+          "INSERT INTO model_collaborators (collaborator_id, model_id) VALUES ?",
+          [values]
+        );
+      }
+    }
+
+    // 4️⃣ Sinkron editor_email (KHUSUS OWNER)
+    if (Array.isArray(model_ids)) {
+      // a. Lepas semua model milik user ini
       await conn.query(
         `
+        UPDATE content_models
+        SET editor_email = NULL
+        WHERE editor_email = ?
+        `,
+        [collab.email]
+      );
+
+      // b. Jika OWNER → assign editor_email
+      const finalPosisi = posisi || collab.posisi;
+
+      if (finalPosisi === "Owner" && model_ids.length > 0) {
+        await conn.query(
+          `
     UPDATE content_models
     SET editor_email = ?
     WHERE id IN (${model_ids.map(() => "?").join(",")})
-      AND editor_email IS NULL
     `,
-        [collab.email, ...model_ids]
-      );
-    }
-
-    if (Array.isArray(model_ids)) {
-      await conn.query("DELETE FROM model_collaborators WHERE collaborator_id=?", [id]);
-      if (model_ids.length > 0) {
-        const values2 = model_ids.map((mid) => [id, mid]);
-        await conn.query("INSERT INTO model_collaborators (collaborator_id, model_id) VALUES ?", [values2]);
+          [collab.email, ...model_ids]
+        );
       }
     }
 
     await conn.commit();
-    res.json({ message: "Collaborator dan model berhasil diperbarui" });
+    res.json({ message: "Collaborator berhasil diperbarui" });
   } catch (err) {
     await conn.rollback();
     console.error(err);
-    res.status(500).json({ message: "Gagal memperbarui collaborator", error: (err).message });
+    res.status(500).json({
+      message: "Gagal memperbarui collaborator",
+      error: err.message,
+    });
   } finally {
     conn.release();
   }

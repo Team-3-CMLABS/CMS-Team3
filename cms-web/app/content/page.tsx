@@ -22,6 +22,7 @@ export default function ContentPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
+  const [canAddContent, setCanAddContent] = useState(false);
 
   const router = useRouter();
 
@@ -41,14 +42,7 @@ export default function ContentPage() {
         const data = await res.json();
 
         if (data.contents) {
-          const all = data.contents;
-          // 🔹 Kalau role-nya editor, hanya tampilkan yang dia buat
-          const filtered =
-            user.role === "editor"
-              ? all.filter((c: any) => c.editor_email === user.email)
-              : all;
-
-          setContents(filtered);
+          setContents(data.contents || []);
         }
       } catch (err) {
         console.error("Gagal mengambil data konten:", err);
@@ -59,6 +53,28 @@ export default function ContentPage() {
     };
 
     fetchContents();
+
+    const fetchPermission = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(
+          "http://localhost:4000/api/me/content-permission",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const data = await res.json();
+        setCanAddContent(data.canAddContent === true);
+      } catch (err) {
+        console.error("Gagal cek permission:", err);
+        setCanAddContent(false);
+      }
+    };
+
+    fetchPermission();
   }, []);
 
   const filteredContents = contents.filter((item) => {
@@ -469,15 +485,17 @@ export default function ContentPage() {
                 </div>
 
                 {/* Add Content */}
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  whileHover={{ scale: 1.03 }}
-                  onClick={handleAddContent}
-                  className="bg-green-600 hover:bg-green-700 text-white rounded-md px-4 py-2 flex items-center gap-2"
-                >
-                  <FilePlus2 size={18} />
-                  Add Content
-                </motion.button>
+                {canAddContent && (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    whileHover={{ scale: 1.03 }}
+                    onClick={handleAddContent}
+                    className="bg-green-600 hover:bg-green-700 text-white rounded-md px-4 py-2 flex items-center gap-2"
+                  >
+                    <FilePlus2 size={18} />
+                    Add Content
+                  </motion.button>
+                )}
               </div>
             </div>
 

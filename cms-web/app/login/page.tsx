@@ -126,7 +126,11 @@ export default function Login() {
             Enter your email and password to access your account
           </p>
 
-          <div className="absolute top-4 right-4">
+          <div
+            className={`absolute top-4 right-4 z-40 transition
+    ${popup.show ? "opacity-40 pointer-events-none" : "opacity-100"}
+  `}
+          >
             <ThemeToggle />
           </div>
 

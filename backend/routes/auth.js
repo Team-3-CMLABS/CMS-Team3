@@ -384,6 +384,48 @@ router.put("/admin/users/:id/approve", async (req, res) => {
   }
 });
 
+// ===================== CHECK CONTENT PERMISSION =====================
+router.get("/me/content-permission", async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    return res.status(401).json({ canAddContent: false });
+  }
+
+  try {
+    const token = authHeader.split(" ")[1];
+    const user = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Admin selalu owner
+    if (user.role === "admin") {
+      return res.json({ canAddContent: true, posisi: "Owner" });
+    }
+
+    // Editor → cek collaborators
+    if (user.role === "editor") {
+      const [rows] = await pool.query(
+        `SELECT posisi FROM collaborators 
+         WHERE user_id = ? AND status = 'Active'
+         LIMIT 1`,
+        [user.id]
+      );
+
+      if (!rows.length) {
+        return res.json({ canAddContent: false, posisi: null });
+      }
+
+      return res.json({
+        canAddContent: rows[0].posisi === "Owner",
+        posisi: rows[0].posisi,
+      });
+    }
+
+    return res.json({ canAddContent: false, posisi: null });
+  } catch (err) {
+    console.error("Permission error:", err.message);
+    return res.status(403).json({ canAddContent: false });
+  }
+});
+
 // ===================== GET ALL USERS =====================
 router.get("/users", async (req, res) => {
   try {

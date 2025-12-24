@@ -51,9 +51,10 @@ const verifyToken = (req, res, next) => {
 /* ===================== GET ALL CONTENT ===================== */
 router.get("/", verifyToken, async (req, res) => {
     try {
-        const { role, email } = req.user;
+        const { role, email, id } = req.user;
+
         let query = `
-            SELECT 
+            SELECT DISTINCT
                 m.id AS model_id,
                 m.name AS model_name,
                 m.slug AS model_slug,
@@ -62,37 +63,53 @@ router.get("/", verifyToken, async (req, res) => {
                 COALESCE(c.slug, m.slug) AS content_slug,
                 COALESCE(c.status, 'draft') AS content_status,
                 c.data AS content_data,
-                c.updated_at,
-                c.editor_email AS content_editor_email
+                c.updated_at
             FROM content_models m
             LEFT JOIN contents c ON c.model_id = m.id
+            LEFT JOIN model_collaborators mc ON mc.model_id = m.id
+            LEFT JOIN collaborators col ON col.id = mc.collaborator_id
         `;
-        let params = [];
+
+        const params = [];
+
         if (role === "editor") {
-            query += " WHERE c.editor_email = ? OR m.editor_email = ?";
-            params = [email, email];
+            query += `
+                WHERE
+                    m.editor_email = ?
+                    OR c.editor_email = ?
+                    OR (col.user_id = ? AND col.status = 'Active')
+            `;
+            params.push(email, email, id);
         }
+
         query += " ORDER BY m.id ASC";
 
         const [rows] = await pool.query(query, params);
 
         const formatted = rows.map((r) => {
             let parsedData = {};
-            try { parsedData = typeof r.content_data === "string" ? JSON.parse(r.content_data) : r.content_data || {}; } catch { parsedData = {}; }
+            try {
+                parsedData = typeof r.content_data === "string"
+                    ? JSON.parse(r.content_data)
+                    : r.content_data || {};
+            } catch {
+                parsedData = {};
+            }
+
             return {
                 id: r.model_id,
                 model: r.model_name,
                 slug: r.content_slug,
                 status: r.content_status,
                 data: parsedData,
-                editor_email: r.model_editor_email, // pakai editor dari content_models dulu
+                editor_email: r.model_editor_email,
                 updated_at: r.updated_at,
             };
         });
 
         res.json({ contents: formatted });
     } catch (err) {
-        console.error(err);
+        console.error("GET CONTENT ERROR:", err);
         res.status(500).json({ message: "Database error" });
     }
 });
@@ -130,9 +147,33 @@ router.get("/:slug", async (req, res) => {
     }
 });
 
+/* ===================== HELPER FUNCTION ===================== */
+const canManageContent = async (user) => {
+    if (user.role === "admin") return true;
+
+    if (user.role === "editor") {
+        const [rows] = await pool.query(
+            `SELECT posisi FROM collaborators WHERE email = ? LIMIT 1`,
+            [user.email]
+        );
+
+        if (!rows.length) return false;
+        return rows[0].posisi === "Owner";
+    }
+
+    return false;
+};
+
 /* ===================== CREATE CONTENT ===================== */
 router.post("/:slug", verifyToken, upload.any(), async (req, res) => {
     try {
+        const allowed = await canManageContent(req.user);
+        if (!allowed) {
+            return res.status(403).json({
+                message: "Anda tidak memiliki izin untuk menambahkan content",
+            });
+        }
+
         const { slug } = req.params;
         const status = req.body.status || "draft";
 
@@ -170,6 +211,13 @@ router.post("/:slug", verifyToken, upload.any(), async (req, res) => {
 /* ===================== UPDATE CONTENT ===================== */
 router.put("/:slug", verifyToken, upload.any(), async (req, res) => {
     try {
+        const allowed = await canManageContent(req.user);
+        if (!allowed) {
+            return res.status(403).json({
+                message: "Anda tidak memiliki izin untuk mengedit content",
+            });
+        }
+
         const { slug } = req.params;
         const status = req.body.status || "draft";
 
