@@ -17,11 +17,11 @@ import {
 } from "react-icons/fi";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
-import AddFieldModal from "../../components/AddFieldModal";
-import SettingsPanel from "../../components/SettingsPanel";
-import EditFieldModal from "../../components/EditFieldModal";
+import AddFieldModal from "../components/AddFieldModal";
+import SettingsPanel from "../components/SettingsPanel";
+import EditFieldModal from "../components/EditFieldModal";
 
-export default function SinglePageHome() {
+export default function PageHome() {
   const { slug } = useParams();
 
   const [fields, setFields] = useState<any[]>([]);

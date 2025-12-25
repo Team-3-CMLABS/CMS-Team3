@@ -19,7 +19,7 @@ export default function SinglePageList() {
     try {
       const token = localStorage.getItem("token");
 
-      const res = await fetch("http://localhost:4000/api/content-builder?type=single", {
+      const res = await fetch("http://localhost:4000/api/content-builder", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -137,7 +137,7 @@ export default function SinglePageList() {
                 <div className="flex items-center gap-2">
                   <FiFileText className="text-blue-500" />
                   <h3
-                    onClick={() => router.push(`/content-builder/single-page/${page.slug}`)}
+                    onClick={() => router.push(`/content-builder/${page.slug}`)}
                     className="font-semibold text-slate-800 hover:text-blue-600 cursor-pointer"
                   >
                     {page.model}
@@ -146,7 +146,7 @@ export default function SinglePageList() {
 
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => router.push(`/content-builder/single-page/${page.slug}`)}
+                    onClick={() => router.push(`/content-builder/${page.slug}`)}
                     className="text-slate-400 hover:text-blue-500 transition"
                     title="Edit"
                   >

@@ -121,9 +121,6 @@ const canManageContent = async (user) => {
 
 // 🧩 CREATE MODEL
 router.post("/model", verifyToken, async (req, res) => {
-    if (req.user.role !== "admin" && !isOwner(req.user.id)) {
-        return res.status(403).json({ message: "Tidak punya izin" });
-    }
     try {
         const allowed = await canManageContent(req.user);
         if (!allowed) {
@@ -167,7 +164,7 @@ router.post("/model", verifyToken, async (req, res) => {
 });
 
 // 🧩 UPDATE MODEL (konfigurasi)
-router.put("/model/:id", async (req, res) => {
+router.put("/model/:id", verifyToken, async (req, res) => {
     try {
         const allowed = await canManageContent(req.user);
         if (!allowed) {

@@ -12,7 +12,7 @@ export default function FieldCard({
   color?: string;
 }) {
   return (
-    <div className="border rounded-lg p-3 bg-white shadow-sm flex items-center justify-between">
+    <div className="border rounded-lg p-3 bg-whitez shadow-sm flex items-center justify-between">
       <div className="flex items-center gap-3">
         <div className="p-2 rounded-md bg-gray-50">
           <FiMove className="text-gray-400" />

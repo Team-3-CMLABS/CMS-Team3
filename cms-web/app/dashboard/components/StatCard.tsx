@@ -25,7 +25,7 @@ export default function StatCard({ title, value, color = "blue" }: StatCardProps
     <div className="rounded-xl p-5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow duration-200">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[13px] font-medium text-slate-500 uppercase tracking-wide">
+          <p className="text-[13px] font-medium text-slate-500 uppercase tracking-widez">
             {title}
           </p>
           <p className="mt-1 text-xs text-slate-400">Overview</p>

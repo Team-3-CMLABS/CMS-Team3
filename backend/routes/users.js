@@ -126,11 +126,15 @@ router.post("/", verifyToken, verifyAdmin, async (req, res) => {
 
     await connection.query(
       `INSERT INTO profile (user_id, full_name, username, email, role)
-       VALUES (?, ?, ?, ?, ?)`,
+   VALUES (?, ?, ?, ?, ?)
+   ON DUPLICATE KEY UPDATE
+     full_name = VALUES(full_name),
+     username = VALUES(username),
+     email = VALUES(email),
+     role = VALUES(role)`,
       [userId, username, username, email, role || "viewer"]
     );
 
-    // ================== PERBAIKAN DI SINI ==================
     // Jika rolenya editor, masukkan juga nama dan email ke tabel collaborators
     if (role === "editor") {
       await connection.query(
@@ -139,7 +143,6 @@ router.post("/", verifyToken, verifyAdmin, async (req, res) => {
         [username, email, userId, "Collaborator", "Active"]
       );
     }
-    // ========================================================
 
     await connection.commit();
     res.status(201).json({
@@ -206,7 +209,6 @@ router.put("/:id", verifyToken, verifyAdmin, async (req, res) => {
       [username, username, email, role, id]
     );
 
-    // ================== PERBAIKAN DI SINI JUGA ==================
     // Jika role diubah menjadi editor, tambahkan ke collaborators
     if (oldRole !== "editor" && role === "editor") {
       await connection.query(
@@ -218,7 +220,6 @@ router.put("/:id", verifyToken, verifyAdmin, async (req, res) => {
     } else if (oldRole === "editor" && role !== "editor") {
       await connection.query("DELETE FROM collaborators WHERE user_id = ?", [id]);
     }
-    // ==========================================================
 
     await connection.commit();
     res.json({ message: "User berhasil diupdate", success: true });
@@ -282,7 +283,7 @@ router.delete("/:id", verifyToken, verifyAdmin, async (req, res) => {
     ]);
     if (rows.length === 0) {
       return res.status(404).json({ error: "User tidak ditemukan" });
-    } 
+    }
 
     await pool.query("DELETE FROM users WHERE id_user=?", [id]);
     await pool.query("DELETE FROM profile WHERE user_id=?", [id]);

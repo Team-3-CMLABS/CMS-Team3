@@ -1,14 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import StatCard from "@/components/StatCard";
-import DonutChart from "@/components/DonutChart";
-import BarChart from "@/components/BarChart";
+import StatCard from "./components/StatCard";
+import DonutChart from "./components/DonutChart";
+import BarChart from "./components/BarChart";
 import { Clock, FileText, Users } from "lucide-react";
 
 export default function Dashboard() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
+  const [role, setRole] = useState<string>("");
 
   interface Content {
     id: number;
@@ -22,11 +23,14 @@ export default function Dashboard() {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+
     if (!token) {
       router.replace("/login");
       return;
     } else {
       setAuthorized(true);
+      setRole(user.role);
     }
 
     const fetchContent = async () => {
@@ -150,12 +154,14 @@ export default function Dashboard() {
               <FileText className="w-4 h-4 text-slate-500" />
               List Content
             </h2>
-            <span
-              className="text-xs text-slate-400 hover:text-blue-600 cursor-pointer transition"
-              onClick={() => router.push("/content")}
-            >
-              Manage →
-            </span>
+            {role !== "viewer" && (
+              <span
+                className="text-xs text-slate-400 hover:text-blue-600 cursor-pointer transition"
+                onClick={() => router.push("/content")}
+              >
+                Manage →
+              </span>
+            )}
           </div>
 
           <ul className="space-y-1.5">
@@ -183,14 +189,16 @@ export default function Dashboard() {
                     </span>
                   </div>
 
-                  <button
-                    onClick={() => router.push(`/content/${item.slug}`)}
-                    className="text-[11px] px-3 py-1 rounded-full
-                         bg-blue-600 text-white
-                         hover:bg-blue-700 transition"
-                  >
-                    View →
-                  </button>
+                  {role !== "viewer" && (
+                    <button
+                      onClick={() => router.push(`/content/${item.slug}`)}
+                      className="text-[11px] px-3 py-1 rounded-full
+         bg-blue-600 text-white
+         hover:bg-blue-700 transition"
+                    >
+                      View →
+                    </button>
+                  )}
                 </li>
               ))
             ) : (

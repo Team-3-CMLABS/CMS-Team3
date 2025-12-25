@@ -12,7 +12,7 @@ export default function PageModal({
   onClose,
 }: {
   title: string;
-  type: "single" | "multi" | "component";
+  type: "single";
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -68,13 +68,7 @@ export default function PageModal({
       onClose();
 
       setTimeout(() => {
-        if (type === "multi") {
-          router.push(`/content-builder/multi-page/${data.model.slug}`);
-        } else if (type === "component") {
-          router.push(`/content-builder/component/${data.model.slug}`);
-        } else {
-          router.push(`/content-builder/single-page/${data.model.slug}`);
-        }
+        router.push(`/content-builder/${data.model.slug}`);
       }, 1000);
     } catch (err) {
       Swal.fire("Error", "Server error, please try again.", "error");

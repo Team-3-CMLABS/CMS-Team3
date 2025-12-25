@@ -90,7 +90,7 @@ export default function Sidebar() {
         {(role === "admin" || role === "editor") && (
           <div>
             <Link
-              href="/content-builder/single-page"
+              href="/content-builder"
               className={clsx(
                 "flex items-center gap-3 px-3 py-2 rounded-lg w-full transition-all duration-200",
                 pathname.startsWith("/content-builder")

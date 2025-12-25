@@ -10,6 +10,12 @@ import { Button } from "@/components/ui/button";
 
 export default function Page() {
   const router = useRouter();
+  const [role, setRole] = useState<string>("");
+
+  React.useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    setRole(user.role);
+  }, []);
 
   const [tokens] = useState([
     {
@@ -54,14 +60,16 @@ export default function Page() {
                   Manage and monitor your API tokens easily.
                 </p>
               </div>
- 
-              <Button
-                onClick={() => router.push("/settings/new")}
-                className="bg-green-600 hover:bg-green-700 text-white rounded-md px-4 py-2 flex items-center gap-2"
-              >
-                <LockKeyhole size={16} />
-                <span>New API Token</span>
-              </Button>
+
+              {role !== "viewer" && (
+                <Button
+                  onClick={() => router.push("/settings/new")}
+                  className="bg-green-600 hover:bg-green-700 text-white rounded-md px-4 py-2 flex items-center gap-2"
+                >
+                  <LockKeyhole size={16} />
+                  <span>New API Token</span>
+                </Button>
+              )}
             </div>
 
             {/* TABLE */}
@@ -120,21 +128,24 @@ export default function Page() {
                               <Eye size={16} />
                             </button>
 
-                            {/* Edit */}
-                            <button
-                              className="p-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition"
-                              title="Edit"
-                            >
-                              <Pencil size={16} />
-                            </button>
+                            {/* Edit & Delete */}
+                            {role !== "viewer" && (
+                              <>
+                                <button
+                                  className="p-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition"
+                                  title="Edit"
+                                >
+                                  <Pencil size={16} />
+                                </button>
 
-                            {/* Delete */}
-                            <button
-                              className="p-2 rounded-lg bg-red-500 hover:bg-red-600 text-white transition"
-                              title="Delete"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                                <button
+                                  className="p-2 rounded-lg bg-red-500 hover:bg-red-600 text-white transition"
+                                  title="Delete"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>

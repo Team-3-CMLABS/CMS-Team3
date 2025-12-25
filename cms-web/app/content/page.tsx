@@ -23,10 +23,11 @@ export default function ContentPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [canAddContent, setCanAddContent] = useState(false);
+  const [role, setRole] = useState<string>("");
 
   const router = useRouter();
 
-  const handleAddContent = () => router.push("/content-builder/single-page");
+  const handleAddContent = () => router.push("/content-builder");
 
   // 🔹 Ambil semua data konten
   useEffect(() => {
@@ -74,6 +75,10 @@ export default function ContentPage() {
       }
     };
 
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    setRole(user.role);
+
+    fetchContents();
     fetchPermission();
   }, []);
 
@@ -511,8 +516,15 @@ export default function ContentPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
                     whileHover={{ y: -4 }}
-                    onClick={() => router.push(`/content/${item.slug}`)}
-                    className="group bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer"
+                    onClick={() => {
+                      if (role !== "viewer") {
+                        router.push(`/content/${item.slug}`);
+                      }
+                    }}
+                    className={`group bg-white border border-gray-200 rounded-xl p-5 shadow-sm 
+  transition-all duration-300
+  ${role === "viewer" ? "cursor-default" : "cursor-pointer hover:shadow-md"}
+`}
                   >
                     {/* HEADER: TITLE + STATUS */}
                     <div className="flex items-start justify-between mb-4">
@@ -564,16 +576,18 @@ export default function ContentPage() {
                         <Eye size={16} />
                       </motion.button>
 
-                      <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(item);
-                        }}
-                        className="flex items-center gap-1.5 text-red-600 text-sm font-medium hover:text-red-700 transition"
-                      >
-                        <Trash2 size={16} />
-                      </motion.button>
+                      {role !== "viewer" && (
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(item);
+                          }}
+                          className="flex items-center gap-1.5 text-red-600 text-sm font-medium hover:text-red-700 transition"
+                        >
+                          <Trash2 size={16} />
+                        </motion.button>
+                      )}
                     </div>
                   </motion.div>
                 ))}

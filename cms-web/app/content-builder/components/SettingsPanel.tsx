@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiChevronLeft, FiSettings } from "react-icons/fi";
 import Swal from "sweetalert2";
@@ -36,6 +37,8 @@ export default function SettingsPanel({
     }
   );
 
+  const router = useRouter();
+
   useEffect(() => {
     if (!field?.id) return;
 
@@ -62,21 +65,53 @@ export default function SettingsPanel({
     fetchLatest();
   }, [field]);
 
+  useEffect(() => {
+    setLocal((prev) => ({
+      ...prev,
+      apiId: prev.name.toLowerCase().replace(/\s+/g, "-"),
+    }));
+  }, [local.name]);
+
   const handleSave = async () => {
     try {
       const payload = {
-        ...local,
-        slug: local.apiId || local.name.toLowerCase().replace(/\s+/g, "-"),
+        name: local.name,
+        multiLang: local.multiLang,
+        seo: local.seo,
+        workflow: local.workflow,
       };
 
-      await fetch(`http://localhost:4000/api/content-builder/model/${local.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const res = await fetch(
+        `http://localhost:4000/api/content-builder/model/${local.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!res.ok) throw new Error("Update failed");
+
+      // slug baru (hasil generate dari name)
+      const newSlug = local.apiId;
+
+      Swal.fire({
+        title: "Success",
+        text: "Configuration updated!",
+        icon: "success",
+        timer: 1200,
+        showConfirmButton: false,
       });
 
-      Swal.fire("Success", "Configuration updated!", "success");
       onSave(local);
+
+      // ⏩ redirect ke URL baru
+      setTimeout(() => {
+        router.push(`/content-builder/${newSlug}`);
+      }, 1200);
     } catch (err) {
       console.error(err);
       Swal.fire("Error", "Failed to save settings", "error");
