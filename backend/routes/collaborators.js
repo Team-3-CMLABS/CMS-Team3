@@ -16,13 +16,12 @@ const db = mysql.createPool({
   queueLimit: 0,
 });
 
-// GET all collaborators with their associated content models
+// GET all collaborators 
 router.get("/all-users", async (req, res) => {
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
 
-    // 1️⃣ Insert owner ke collaborators jika belum ada
     const [owners] = await conn.query(`
       SELECT DISTINCT
         u.id_user,
@@ -47,7 +46,6 @@ router.get("/all-users", async (req, res) => {
       );
     }
 
-    // 2️⃣ Mapping model_collaborators otomatis
     const [models] = await conn.query(`
       SELECT
         cm.id AS model_id,

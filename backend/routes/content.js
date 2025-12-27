@@ -60,7 +60,7 @@ router.get("/", verifyToken, async (req, res) => {
                 m.slug AS model_slug,
                 m.type AS model_type,
                 m.editor_email AS model_editor_email,
-                COALESCE(c.slug, m.slug) AS content_slug,
+                m.slug AS slug,
                 COALESCE(c.status, 'draft') AS content_status,
                 c.data AS content_data,
                 c.updated_at
@@ -99,7 +99,7 @@ router.get("/", verifyToken, async (req, res) => {
             return {
                 id: r.model_id,
                 model: r.model_name,
-                slug: r.content_slug,
+                slug: r.slug,
                 status: r.content_status,
                 data: parsedData,
                 editor_email: r.model_editor_email,
@@ -164,6 +164,27 @@ const canManageContent = async (user) => {
     return false;
 };
 
+/* ===================== SAVE MEDIA TO LIBRARY ===================== */
+const saveMediaToLibrary = async (files, userId, modelId, contentSlug) => {
+    if (!files || !files.length) return;
+
+    const values = files.map(file => [
+        file.filename,
+        `/uploads/${file.filename}`,
+        file.mimetype,
+        userId,
+        modelId,
+        contentSlug
+    ]);
+
+    await pool.query(
+        `INSERT INTO media_assets 
+        (filename, url, file_type, uploaded_by, model_id, content_slug)
+        VALUES ?`,
+        [values]
+    );
+};
+
 /* ===================== CREATE CONTENT ===================== */
 router.post("/:slug", verifyToken, upload.any(), async (req, res) => {
     try {
@@ -194,11 +215,13 @@ router.post("/:slug", verifyToken, upload.any(), async (req, res) => {
                 if (!Array.isArray(data[file.fieldname])) data[file.fieldname] = [data[file.fieldname]];
                 data[file.fieldname].push(`/uploads/${file.filename}`);
             });
+            // 🔥 SIMPAN KE MEDIA LIBRARY
+            await saveMediaToLibrary(req.files, req.user.id, model.id, slug);
         }
 
         await pool.query(
-            "INSERT INTO contents (model_id, slug, data, status, editor_email, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
-            [model.id, slug, JSON.stringify(data), status, editorEmail]
+            "INSERT INTO contents (model_id, data, status, editor_email, created_at) VALUES (?, ?, ?, ?, NOW())",
+            [model.id, JSON.stringify(data), status, editorEmail]
         );
 
         res.json({ message: "Content saved", data });
@@ -249,6 +272,7 @@ router.put("/:slug", verifyToken, upload.any(), async (req, res) => {
                 if (!Array.isArray(data[file.fieldname])) data[file.fieldname] = [data[file.fieldname]];
                 data[file.fieldname].push(`/uploads/${file.filename}`);
             });
+            await saveMediaToLibrary(req.files, req.user.id, model.id, slug);
         }
 
         if (existingRows.length) {
@@ -258,8 +282,8 @@ router.put("/:slug", verifyToken, upload.any(), async (req, res) => {
             );
         } else {
             await pool.query(
-                "INSERT INTO contents (model_id, slug, data, status, editor_email, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
-                [model.id, slug, JSON.stringify(data), status, editorEmail]
+                "INSERT INTO contents (model_id, data, status, editor_email, created_at) VALUES (?, ?, ?, ?, NOW())",
+                [model.id, JSON.stringify(data), status, editorEmail]
             );
         }
 

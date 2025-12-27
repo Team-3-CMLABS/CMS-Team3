@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import StatCard from "./components/StatCard";
@@ -6,20 +7,35 @@ import DonutChart from "./components/DonutChart";
 import BarChart from "./components/BarChart";
 import { Clock, FileText, Users } from "lucide-react";
 
+interface Content {
+  id: number;
+  model: string;
+  slug: string;
+  status: string;
+  editor_email?: string;
+}
+
+interface Collaborator {
+  id: number;
+  user_id: number;
+  name: string;
+  email: string;
+  role?: string;
+  posisi?: string;
+  status?: string;
+  models?: any[];
+}
+
 export default function Dashboard() {
   const router = useRouter();
+
   const [authorized, setAuthorized] = useState(false);
   const [role, setRole] = useState<string>("");
 
-  interface Content {
-    id: number;
-    model: string;
-    slug: string;
-    status: string;
-    editor_email?: string;
-  }
-
   const [content, setContent] = useState<Content[]>([]);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [loading, setLoading] = useState(true);
+  const totalCollaborators = collaborators.length;
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -28,33 +44,59 @@ export default function Dashboard() {
     if (!token) {
       router.replace("/login");
       return;
-    } else {
-      setAuthorized(true);
-      setRole(user.role);
     }
 
-    const fetchContent = async () => {
+    setAuthorized(true);
+    setRole(user.role);
+
+    const fetchDashboardData = async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/content", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const [contentRes, collabRes] = await Promise.all([
+          fetch("http://localhost:4000/api/content", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+          fetch("http://localhost:4000/api/collaborators/all-users", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+        ]);
 
-        const result = await res.json();
-        console.log("CONTENT RESPONSE:", result);
+        if (!contentRes.ok || !collabRes.ok) {
+          throw new Error("Response API tidak OK");
+        }
 
-        setContent(Array.isArray(result?.contents) ? result.contents : []);
-      } catch (err) {
-        console.error("Gagal mengambil data content:", err);
+        const contentJson = await contentRes.json();
+        const collabJson = await collabRes.json();
+
+        setContent(
+          Array.isArray(contentJson?.contents)
+            ? contentJson.contents
+            : []
+        );
+
+        setCollaborators(
+          Array.isArray(collabJson?.data)
+            ? collabJson.data
+            : []
+        );
+      } catch (error) {
+        console.error("Dashboard fetch error:", error);
         setContent([]);
+        setCollaborators([]);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchContent();
+    fetchDashboardData();
   }, [router]);
 
-  if (!authorized) return <p className="text-center mt-10">Loading...</p>;
+  if (!authorized) {
+    return <p className="text-center mt-10">Loading...</p>;
+  }
 
   const activities = [
     {
@@ -84,105 +126,122 @@ export default function Dashboard() {
     },
   ];
 
+  // hanya collaborator dengan role admin
+  const adminCollaborators = collaborators.filter(
+    (c) => c.role === "admin"
+  );
+
   return (
     <main className="space-y-8 animate-fadeIn">
       {/* === TOP STATS === */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatCard title="Personal Project" value="217" color="blue" />
-        <StatCard title="Organization Project" value="235" color="teal" />
-        <StatCard title="Total Organization" value="148" color="indigo" />
-        <StatCard title="Collaborator" value="102" color="purple" />
+        <StatCard
+          title="Total Content Model"
+          value={loading ? "..." : content.length}
+          color="indigo"
+        />
+
+        <StatCard
+          title="Collaborator"
+          value={
+            loading
+              ? "..."
+              : role === "admin"
+                ? totalCollaborators
+                : "-"
+          }
+          color="purple"
+        />
+
+        <StatCard
+          title="Published Content"
+          value={
+            loading
+              ? "..."
+              : content.filter((c) => c.status === "published").length
+          }
+          color="blue"
+        />
+
+        <StatCard
+          title="Draft Content"
+          value={
+            loading
+              ? "..."
+              : content.filter((c) => c.status === "draft").length
+          }
+          color="teal"
+        />
       </div>
 
       {/* === CHARTS === */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="bg-white rounded-2xl p-6 border border-slate-200/70 shadow-sm hover:shadow-md transition-all duration-200">
+        <div className="bg-white rounded-2xl p-6 border shadow-sm">
           <DonutChart />
         </div>
-        <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-200/70 shadow-sm hover:shadow-md transition-all duration-200">
+        <div className="lg:col-span-2 bg-white rounded-2xl p-6 border shadow-sm">
           <BarChart />
         </div>
       </div>
 
       {/* === ACTIVITY & CONTENT === */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Recently Activity */}
-        <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm p-4 hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-slate-800 flex items-center gap-2 text-sm">
-              <Clock className="w-4 h-4 text-slate-500" />
-              Recently Activity
-            </h2>
-            <span className="text-xs text-slate-400 hover:text-blue-600 cursor-pointer transition">
-              View all →
-            </span>
-          </div>
+        {/* ACTIVITY */}
+        <div className="bg-white rounded-2xl border shadow-sm p-4">
+          <h2 className="font-semibold text-sm mb-3 flex items-center gap-2">
+            <Clock className="w-4 h-4" />
+            Recent Activity
+          </h2>
 
-          <ul className="space-y-1.5">
+          <ul className="space-y-2">
             {activities.map((act, i) => (
               <li
                 key={i}
-                className="group flex items-start gap-3 p-2.5 rounded-lg
-                     border border-slate-100
-                     hover:bg-slate-50 hover:border-blue-200
-                     transition-all duration-200"
+                className="flex gap-3 p-2 rounded-lg border hover:bg-slate-50"
               >
-                {/* Icon */}
-                <div className="w-8 h-8 flex items-center justify-center rounded-md bg-slate-100 group-hover:bg-blue-100">
+                <div className="w-8 h-8 flex items-center justify-center bg-slate-100 rounded-md">
                   {act.icon}
                 </div>
-
-                {/* Text */}
-                <div className="flex-1 text-xs text-slate-700">
-                  <p
-                    dangerouslySetInnerHTML={{ __html: act.text }}
-                    className="leading-snug"
-                  />
-                  <span className="block mt-0.5 text-[11px] text-slate-400">
-                    {act.time}
-                  </span>
+                <div className="text-xs">
+                  <p dangerouslySetInnerHTML={{ __html: act.text }} />
+                  <span className="text-slate-400">{act.time}</span>
                 </div>
               </li>
             ))}
           </ul>
         </div>
 
-        {/* Content List */}
-        <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm p-4 hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-slate-800 flex items-center gap-2 text-sm">
-              <FileText className="w-4 h-4 text-slate-500" />
+        {/* CONTENT LIST */}
+        <div className="bg-white rounded-2xl border shadow-sm p-4">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="font-semibold text-sm flex items-center gap-2">
+              <FileText className="w-4 h-4" />
               List Content
             </h2>
+
             {role !== "viewer" && (
               <span
-                className="text-xs text-slate-400 hover:text-blue-600 cursor-pointer transition"
                 onClick={() => router.push("/content")}
+                className="text-xs text-blue-600 cursor-pointer"
               >
                 Manage →
               </span>
             )}
           </div>
 
-          <ul className="space-y-1.5">
+          <ul className="space-y-2">
             {content.length > 0 ? (
               content.map((item) => (
                 <li
                   key={item.id}
-                  className="group flex justify-between items-center p-2.5 rounded-lg
-                       border border-slate-100
-                       hover:bg-blue-50/40 hover:border-blue-200
-                       transition-all duration-200"
+                  className="flex justify-between items-center p-2 rounded-lg border hover:bg-blue-50"
                 >
                   <div>
-                    <p className="text-sm font-medium text-slate-800 leading-tight">
-                      {item.model}
-                    </p>
+                    <p className="text-sm font-medium">{item.model}</p>
                     <span
-                      className={`inline-block mt-0.5 text-[10px] px-2 py-0.5 rounded-full
-                ${item.status === "published"
-                          ? "bg-green-100 text-green-600"
-                          : "bg-yellow-100 text-yellow-600"
+                      className={`text-[10px] px-2 py-0.5 rounded-full ${item.status === "published"
+                        ? "bg-green-100 text-green-600"
+                        : "bg-yellow-100 text-yellow-600"
                         }`}
                     >
                       {item.status}
@@ -192,9 +251,7 @@ export default function Dashboard() {
                   {role !== "viewer" && (
                     <button
                       onClick={() => router.push(`/content/${item.slug}`)}
-                      className="text-[11px] px-3 py-1 rounded-full
-         bg-blue-600 text-white
-         hover:bg-blue-700 transition"
+                      className="text-[11px] px-3 py-1 bg-blue-600 text-white rounded-full"
                     >
                       View →
                     </button>
@@ -209,6 +266,7 @@ export default function Dashboard() {
           </ul>
         </div>
       </div>
-    </main >
+
+    </main>
   );
 }

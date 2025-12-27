@@ -1,7 +1,7 @@
 // components/StatCard.tsx
 import React from "react";
 
-type ColorName = "blue" | "teal" | "indigo" | "purple" | "green" | "orange";
+type ColorName = "blue" | "teal" | "indigo" | "purple" | "green" | "orange" ;
 
 interface StatCardProps {
   title: string;
