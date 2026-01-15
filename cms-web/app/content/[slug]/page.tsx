@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { FiSave } from "react-icons/fi";
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
@@ -76,37 +76,60 @@ export default function ContentEditorPage() {
     };
 
     // 🔹 Simpan ke backend
+    const router = useRouter();
+
     const handleSave = async () => {
-        const token = localStorage.getItem("token");
-        const formData = new FormData();
+        try {
+            const token = localStorage.getItem("token");
+            const formData = new FormData();
 
-        formData.append("status", status);
+            formData.append("status", status);
 
-        Object.entries(contentData).forEach(([key, value]) => {
-            const values = normalizeToArray(value);
+            Object.entries(contentData).forEach(([key, value]) => {
+                const values = normalizeToArray(value);
 
-            // 🔹 FILE BARU
-            values.forEach((v) => {
-                if (v instanceof File) {
-                    formData.append(key, v);
+                const files = values.filter(v => v instanceof File);
+                const nonFiles = values.filter(v => !(v instanceof File));
+
+                // append file baru
+                files.forEach(file => {
+                    formData.append(key, file);
+                });
+
+                if (files.length === 0 && nonFiles.length > 0) {
+                    formData.append(
+                        key,
+                        JSON.stringify(nonFiles.length > 1 ? nonFiles : nonFiles[0])
+                    );
                 }
             });
 
-            // 🔹 DATA NON-FILE (TEXT, RICHTEXT, NUMBER, URL FILE LAMA)
-            const nonFile = values.filter((v) => !(v instanceof File));
+            const res = await fetch(`http://localhost:4000/api/content/${slug}`, {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+                body: formData,
+            });
 
-            formData.append(key, JSON.stringify(nonFile.length > 1 ? nonFile : nonFile[0]));
-        });
+            if (!res.ok) {
+                throw new Error("Gagal menyimpan konten");
+            }
 
-        await fetch(`http://localhost:4000/api/content/${slug}`, {
-            method: "PUT",
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-            body: formData,
-        });
+            await Swal.fire({
+                title: "Berhasil",
+                text: "Konten berhasil disimpan",
+                icon: "success",
+                confirmButtonText: "OK",
+            });
 
-        Swal.fire("Berhasil", "Konten disimpan", "success");
+            // 🔥 Redirect setelah klik OK
+            router.push("/content");
+
+        } catch (error) {
+            console.error(error);
+            Swal.fire("Error", "Terjadi kesalahan saat menyimpan konten", "error");
+        }
     };
 
     const resolvePreviewUrl = (item: any) => {
@@ -199,7 +222,7 @@ export default function ContentEditorPage() {
                                 })
                             }
                         />
-                        
+
                         <input
                             type="url"
                             placeholder="Paste URL Google Maps di sini"
@@ -316,7 +339,7 @@ export default function ContentEditorPage() {
                     <div className="max-w-4xl mx-auto bg-white border border-gray-200 rounded-2xl shadow-sm p-10">
                         <div className="mb-8 border-b border-slate-200 pb-3">
                             <h1 className="text-2xl font-bold text-slate-800 capitalize">
-                                {slug} Page
+                                {slug} 
                             </h1>
                             <p className="text-slate-500 text-sm">
                                 Isi dan ubah konten halaman ini.
