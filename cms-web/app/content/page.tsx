@@ -110,282 +110,501 @@ export default function ContentPage() {
         return `http://localhost:4000${url}`;
       };
 
-      const rendered = fields
-        .map((field: any) => {
-          const value = contentData[field.name];
-          if (value === undefined || value === null || value === "") return "";
+      const getField = (name: string) =>
+        fields.find((f: any) => f.name === name);
 
-          // ===== TEXT =====
-          if (field.type === "text") {
-            return `
-            <h1 style="
-              font-size: 32px;
-              font-weight: 700;
-              margin-bottom: 16px;
-              color: #1e293b;
-              line-height: 1.3;
-            ">${value}</h1>
-          `;
-          }
+      const titleField = getField("title");
+      const datetimeField = getField("datetime");
+      const locationField = getField("location");
+      const bodyField = getField("body");
+      const mediaFields = fields.filter((f: any) => f.type === "media");
 
-          // ===== RICH TEXT =====
-          if (field.type === "richtext") {
-            return `
-            <div style="
-              font-size: 16px;
-              line-height: 1.75;
-              color: #475569;
-              margin-bottom: 24px;
-            ">${value}</div>
-          `;
-          }
+      const title = titleField
+        ? contentData[titleField.name]
+        : "Untitled";
 
-          // ===== NUMBER =====
-          if (field.type === "number") {
-            return `
-            <div style="
-              display: flex;
-              align-items: center;
-              gap: 8px;
-              padding: 12px 16px;
-              background: #f8fafc;
-              border-left: 3px solid #3b82f6;
-              border-radius: 6px;
-              margin-bottom: 20px;
-            ">
-              <span style="
-                font-size: 14px;
-                font-weight: 600;
-                color: #64748b;
-              ">${field.label}:</span>
-              <span style="
-                font-size: 16px;
-                font-weight: 700;
-                color: #1e293b;
-              ">${value}</span>
-            </div>
-          `;
-          }
-
-          // ===== DATETIME =====
-          if (field.type === "datetime") {
-            const date = new Date(value);
-            const formatted = isNaN(date.getTime())
-              ? value
-              : date.toLocaleString("id-ID", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              });
-
-            return `
-            <div style="
-              display: flex;
-              align-items: center;
-              gap: 8px;
-              padding: 12px 16px;
-              background: #f1f5f9;
-              border-radius: 6px;
-              margin-bottom: 20px;
-            ">
-              <span style="
-                font-size: 14px;
-                font-weight: 600;
-                color: #64748b;
-              ">${field.label}:</span>
-              <span style="
-                font-size: 14px;
-                color: #334155;
-              ">${formatted}</span>
-            </div>
-          `;
-          }
-
-          // ===== LOCATION =====
-          if (field.type === "location") {
-            const name = value?.name || "Lihat Lokasi di Google Maps";
-            const url = value?.url;
-            const lat = value?.lat;
-            const lng = value?.lng;
-
-            if (!url) return "";
-
-            return `
-            <div style="
-              margin-bottom: 32px;
-              padding: 20px;
-              background: #f8fafc;
-              border-radius: 12px;
-              border: 1px solid #e2e8f0;
-            ">
-              <div style="margin-bottom: 16px;">
-                <a 
-                  href="${url}" 
-                  target="_blank"
-                  style="
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 6px;
-                    padding: 8px 16px;
-                    background: #3b82f6;
-                    color: white;
-                    font-weight: 600;
-                    font-size: 14px;
-                    text-decoration: none;
-                    border-radius: 8px;
-                    transition: background 0.2s;
-                  "
-                  onmouseover="this.style.background='#2563eb'"
-                  onmouseout="this.style.background='#3b82f6'"
-                >
-                  📍 ${name}
-                </a>
-              </div>
-
-              ${lat && lng
-                ? `
-                <iframe
-                  src="https://www.google.com/maps?q=${lat},${lng}&z=15&output=embed"
-                  style="
-                    width: 100%;
-                    height: 320px;
-                    border-radius: 8px;
-                    border: 0;
-                  "
-                  loading="lazy"
-                ></iframe>
-              `
-                : ""
-              }
-            </div>
-          `;
-          }
-
-          // ===== MEDIA =====
-          if (field.type === "media") {
-            let urls: string[] = [];
-
-            if (typeof value === "string") {
-              urls = [resolveMediaUrl(value)];
-            } else if (Array.isArray(value)) {
-              urls = value.map((v) =>
-                typeof v === "string"
-                  ? resolveMediaUrl(v)
-                  : resolveMediaUrl(v?.url || v?.path)
-              );
-            } else if (typeof value === "object") {
-              urls = [resolveMediaUrl(value.url || value.path)];
-            }
-
-            return urls
-              .map(
-                (url) => `
-                <div style="
-                  margin-bottom: 24px;
-                  border-radius: 12px;
-                  overflow: hidden;
-                  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-                ">
-                  <img 
-                    src="${url}"
-                    style="
-                      width: 100%;
-                      max-height: 500px;
-                      object-fit: cover;
-                      display: block;
-                    "
-                  />
-                </div>
-              `
-              )
-              .join("");
-          }
-
-          return "";
+      const formattedDate = datetimeField
+        ? new Date(contentData[datetimeField.name]).toLocaleString("id-ID", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
         })
-        .join("");
+        : "";
+
+      const location = locationField
+        ? contentData[locationField.name]
+        : null;
+
+      let mediaHtml = "";
+
+      if (mediaFields.length > 0) {
+        const resolveMediaUrl = (url: string) => {
+          if (!url) return "";
+          if (url.startsWith("http")) return url;
+          return `http://localhost:4000${url}`;
+        };
+
+        const extractUrl = (v: any): string[] => {
+          if (!v) return [];
+
+          // array
+          if (Array.isArray(v)) {
+            return v.flatMap(extractUrl);
+          }
+
+          // string
+          if (typeof v === "string") {
+            return [resolveMediaUrl(v)];
+          }
+
+          // direct object
+          if (v.url) return [resolveMediaUrl(v.url)];
+          if (v.path) return [resolveMediaUrl(v.path)];
+
+          // nested file
+          if (v.file?.url) return [resolveMediaUrl(v.file.url)];
+          if (v.file?.path) return [resolveMediaUrl(v.file.path)];
+
+          return [];
+        };
+
+        const allMediaUrls = mediaFields.flatMap((field: any) =>
+          extractUrl(contentData[field.name])
+        );
+
+        const totalMedia = allMediaUrls.length;
+
+        mediaHtml = `
+<style>
+  .media-slider {
+    position: relative;
+    max-width: 900px;
+    margin: 0 auto 32px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #f1f5f9;
+  }
+
+  .media-slide {
+    display: none;
+  }
+
+  .media-slide.active {
+    display: block;
+  }
+
+  .hero-image {
+    width: 100%;
+    height: auto;
+    max-height: 420px;
+    object-fit: contain;
+    display: block;
+    margin: auto;
+  }
+
+  .slider-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0,0,0,0.5);
+    color: white;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .slider-btn.left { left: 12px; }
+  .slider-btn.right { right: 12px; }
+
+  .slider-counter {
+    position: absolute;
+    bottom: 10px;
+    right: 12px;
+    background: rgba(0,0,0,0.55);
+    color: white;
+    font-size: 12px;
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
+</style>
+
+<div class="media-slider">
+  ${allMediaUrls
+            .map(
+              (url: any, i: number) => `
+      <div class="media-slide ${i === 0 ? "active" : ""}">
+        <img src="${url}" class="hero-image" />
+      </div>
+    `
+            )
+            .join("")}
+
+  ${totalMedia > 1
+            ? `
+    <button class="slider-btn left" onclick="slideMedia(-1)">‹</button>
+    <button class="slider-btn right" onclick="slideMedia(1)">›</button>
+    <div class="slider-counter">
+      <span id="mediaIndex">1</span> / ${totalMedia}
+    </div>
+  `
+            : ""
+          }
+</div>
+`;
+
+      }
+
+      const rawBody = bodyField ? contentData[bodyField.name] : "";
+
+      const body = rawBody
+        ? rawBody
+          .split(/\n\s*\n/)
+          .map((p: string) => `<p>${p.replace(/\n/g, "<br/>")}</p>`)
+          .join("")
+        : "";
+
+      const statusLabel = status === "published" ? "PUBLISHED" : "DRAFT";
+      const statusColor = status === "published" ? "#22c55e" : "#f97316";
+
+      const getMapsUrl = (location: any) => {
+        if (!location) return "";
+
+        // pakai koordinat (paling akurat)
+        if (location.lat && location.lng) {
+          return `https://www.google.com/maps?q=${location.lat},${location.lng}`;
+        }
+
+        // pakai nama lokasi
+        if (location.name) {
+          return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+            location.name
+          )}`;
+        }
+
+        // kalau string langsung
+        if (typeof location === "string") {
+          return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+            location
+          )}`;
+        }
+
+        return "";
+      };
+
+      const locationName =
+        typeof location === "string"
+          ? location
+          : location?.name || "";
+
+      const mapsUrl = getMapsUrl(location);
+
+      const locationHtml =
+        locationName && mapsUrl
+          ? `
+      • <a 
+          href="${mapsUrl}"
+          target="_blank"
+          rel="noopener noreferrer"
+          style="
+            color:#2563eb;
+            text-decoration:none;
+            font-weight:500;
+            display:inline-flex;
+            align-items:center;
+            gap:4px;
+          "
+        >
+         <span style="display:inline-flex;align-items:center">
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    style="margin-right:4px"
+  >
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/>
+    <circle cx="12" cy="10" r="3"/>
+  </svg>
+</span>
+          ${locationName}
+        </a>
+      `
+          : "";
 
       Swal.fire({
-        title: "Preview Halaman",
-        width: 900,
+        width: 1100,
         padding: "0",
-        showCloseButton: true,
-        confirmButtonText: "Tutup",
-        confirmButtonColor: "#3b82f6",
+        showConfirmButton: false,
+        showCloseButton: false,
+        allowOutsideClick: true,
+        allowEscapeKey: true,
         customClass: {
-          popup: "preview-modal",
-          htmlContainer: "preview-content",
+          popup: "cms-popup",
+          htmlContainer: "cms-html",
         },
         html: `
-        <div style="
-          max-height: 75vh;
-          overflow-y: auto;
-          background: #ffffff;
-        ">
-          <!-- Header dengan Status Badge -->
-          <div style="
-            position: sticky;
-            top: 0;
-            background: linear-gradient(to bottom, #ffffff 0%, #ffffff 90%, transparent 100%);
-            padding: 24px 40px 16px;
-            z-index: 10;
-            border-bottom: 1px solid #e2e8f0;
-          ">
-            <span style="
-              display: inline-block;
-              padding: 6px 14px;
-              border-radius: 6px;
-              font-size: 11px;
-              font-weight: 700;
-              letter-spacing: 0.5px;
-              background: ${status === "published" ? "#dcfce7" : "#fef3c7"};
-              color: ${status === "published" ? "#166534" : "#92400e"};
-              border: 1px solid ${status === "published" ? "#bbf7d0" : "#fde68a"};
-            ">
-              ${status.toUpperCase()}
-            </span>
-          </div>
+        <style>
+  .cms-popup {
+    padding: 0 !important;
+    border-radius: 14px !important;
+    overflow: hidden !important;
+  }
 
-          <!-- Content Area -->
-          <article style="
-            padding: 32px 40px 40px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-            text-align: left;
-          ">
-            ${rendered || `
-              <div style="
-                padding: 40px;
-                text-align: center;
-                color: #94a3b8;
-                font-style: italic;
-              ">
-                Konten belum diisi
-              </div>
-            `}
-          </article>
+  .cms-html {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+</style>
 
-          <!-- Footer -->
-          <div style="
-            padding: 20px 40px;
-            background: #f8fafc;
-            border-top: 1px solid #e2e8f0;
-            font-size: 13px;
-            color: #64748b;
-          ">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM4.5 7.5a.5.5 0 0 0 0 1h5.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5H4.5z"/>
-              </svg>
-              <span>
-                Preview dari model <strong style="color: #334155;">${model?.name}</strong> 
-                <span style="color: #94a3b8;">(${model?.slug})</span>
-              </span>
-            </div>  
-          </div>
-        </div>
-      `,
+<div style="font-family:system-ui;background:#f8fafc">
+
+  <!-- TOPBAR -->
+  <div style="
+  background:#3b73b9;
+  color:white;
+  padding:20px 40px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+">
+
+  <!-- KIRI -->
+  <div style="display:flex;align-items:center;gap:10px">
+    <img src="/logo.png" style="width:32px;height:32px"/>
+    <strong>CMS Web Vokasi</strong>
+  </div>
+
+  <!-- KANAN -->
+  <div style="display:flex;align-items:center;gap:12px">
+
+  <!-- STATUS -->
+  <span style="
+    background:${statusColor};
+    padding:6px 14px;
+    border-radius:999px;
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:0.5px;
+  ">
+    ${statusLabel}
+  </span>
+
+  <!-- MODEL -->
+  <span style="
+    font-size:17px;
+    font-weight:600;
+    opacity:0.95;
+  ">
+    ${typeof model === "string" ? model : model?.name}
+  </span>
+
+</div>
+
+</div>
+
+
+  <!-- HEADER (DINAMIS) -->
+  <div style="
+    background:white;
+    padding:28px 32px;
+    text-align:center;
+    border-bottom:1px solid #e5e7eb;
+  ">
+    <h1 style="font-size:28px;font-weight:700;color:#111827">
+      ${title}
+    </h1>
+
+    <div style="font-size:14px;color:#6b7280;margin-top:6px">
+  ${formattedDate}
+  ${locationHtml}
+</div>  
+  </div>
+
+  <!-- CONTENT -->
+  <article style="
+    background:white;
+    padding:32px 48px;
+    color:#374151;
+  ">
+    ${mediaHtml}
+    <style>
+  .richtext {
+    max-width: 860px;
+    margin: 0 auto;
+    font-size: 16px;
+    line-height: 1.9;
+    text-align: justify;
+  }
+
+  .richtext p {
+    margin-bottom: 1.2em;
+    text-indent: 2em; 
+  }
+
+  .richtext p:first-of-type {
+   text-indent: 0;
+  }
+  .richtext h1,
+  .richtext h2,
+  .richtext h3 {
+    font-weight: 700;
+    margin: 1.8em 0 0.8em;
+    color: #111827;
+  }
+
+  .richtext ul,
+  .richtext ol {
+    padding-left: 1.4em;
+    margin-bottom: 1.2em;
+  }
+
+  .richtext li {
+    margin-bottom: 0.5em;
+  }
+
+  .richtext img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 20px auto;
+    border-radius: 12px;
+  }
+</style>
+
+ <div class="richtext">
+  ${body
+            ? body
+            : `<p style="color:#9ca3af;text-align:center">Konten belum diisi</p>`
+          }
+</div>
+
+  </article>
+
+  <!-- FOOTER  -->
+  <footer style="
+  background:#3b73b9;
+  color:white;
+  padding:24px 32px;
+  font-size:13px;
+">
+
+  <!-- BARIS ATAS -->
+  <div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:24px;
+  ">
+
+    <!-- KIRI -->
+      <div style="display:flex;align-items:center;gap:10px">
+    <img src="/logo.png" style="width:32px;height:32px"/>
+    <strong>CMS Web Vokasi</strong>
+  </div>
+
+    <!-- KANAN -->
+<div style="
+  text-align:right;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+">
+
+  <!-- ALAMAT -->
+  <div style="display:flex;justify-content:flex-end;gap:6px;align-items:center">
+    Jl. Seruni No.9, Lowokwaru, Malang
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+      viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/>
+      <circle cx="12" cy="10" r="3"/>
+    </svg>
+  </div>
+
+  <!-- EMAIL -->
+  <div style="display:flex;justify-content:flex-end;gap:6px;align-items:center">
+    team3cms@gmail.com
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+      viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 4h16v16H4z"/>
+      <path d="m22 6-10 7L2 6"/>
+    </svg>
+  </div>
+
+  <!-- PHONE -->
+  <div style="display:flex;justify-content:flex-end;gap:6px;align-items:center">
+    0812-3456-7890
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+      viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 16.92V21a2 2 0 0 1-2.18 2
+        19.79 19.79 0 0 1-8.63-3.07
+        19.5 19.5 0 0 1-6-6
+        19.79 19.79 0 0 1-3.07-8.67
+        A2 2 0 0 1 3 1h4.09
+        a2 2 0 0 1 2 1.72
+        c.12.81.31 1.6.57 2.36
+        a2 2 0 0 1-.45 2.11L8.09 8.09
+        a16 16 0 0 0 6 6
+        l1.9-1.9
+        a2 2 0 0 1 2.11-.45
+        c.76.26 1.55.45 2.36.57
+        a2 2 0 0 1 1.72 2z"/>
+    </svg>
+  </div>
+
+</div>
+
+  </div>
+
+  <!-- BARIS BAWAH (COPYRIGHT) -->
+  <div style="
+    margin-top:16px;
+    text-align:center;
+    font-size:12px;
+    opacity:0.9;
+  ">
+    © 2025 CMS Vokasi UB
+  </div>
+
+</footer>
+
+
+</div>
+`,
+        didOpen: () => {
+          let currentMedia = 0;
+          const slides = document.querySelectorAll(".media-slide");
+          const indexText = document.getElementById("mediaIndex");
+
+          // ⬇️ BIKIN GLOBAL (INI KUNCINYA)
+          (window as any).slideMedia = (direction: number) => {
+            if (!slides.length) return;
+
+            slides[currentMedia].classList.remove("active");
+            currentMedia =
+              (currentMedia + direction + slides.length) % slides.length;
+            slides[currentMedia].classList.add("active");
+
+            if (indexText) {
+              indexText.textContent = String(currentMedia + 1);
+            }
+          };
+        },
       });
     } catch (err) {
       console.error(err);
