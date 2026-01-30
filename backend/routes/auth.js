@@ -14,12 +14,16 @@ const router = express.Router();
 // ===================== DB POOL =====================
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT),
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 // ===================== GOOGLE OAUTH =====================
@@ -343,9 +347,18 @@ router.put("/admin/users/:id/approve", async (req, res) => {
       );
 
       if (existingCollab.length === 0) {
+        const [userRows] = await connection.query(
+          "SELECT nama_user, email FROM users WHERE id_user = ?",
+          [id]
+        );
+
+        const namaUser = userRows[0].nama_user;
+        const emailUser = userRows[0].email;
+
         await connection.query(
-          "INSERT INTO collaborators (user_id, posisi, status) VALUES (?, ?, ?)",
-          [id, "Collaborator", "Active"]
+          `INSERT INTO collaborators (name, email, user_id, posisi, status)
+       VALUES (?, ?, ?, ?, ?)`,
+          [namaUser, emailUser, id, "Collaborator", "Active"]
         );
       }
     }

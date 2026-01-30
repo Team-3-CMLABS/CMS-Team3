@@ -7,13 +7,17 @@ dotenv.config();
 const router = express.Router();
 
 const db = mysql.createPool({
-  host: process.env.DB_HOST || "localhost",
+  host: process.env.DB_HOST || "shinkansen.proxy.rlwy.net",
+  port: Number(process.env.DB_PORT) || "26325",
   user: process.env.DB_USER || "root",
-  password: process.env.DB_PASS || "",
-  database: process.env.DB_NAME || "cms_team3",
+  password: process.env.DB_PASS || "cZtPXhjuOqcItgOeTGzrLehpzlntKOSu",
+  database: process.env.DB_NAME || "railway",
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 // GET all collaborators 
