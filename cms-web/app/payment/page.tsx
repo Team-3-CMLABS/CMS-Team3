@@ -45,7 +45,7 @@ export default function PaymentPage() {
         const token = localStorage.getItem("token");
         if (!userId) return;
 
-        fetch(`http://localhost:4000/api/profile/${userId}`, {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/${userId}`, {
             headers: { Authorization: `Bearer ${token}` },
         })
             .then(async (res) => (res.ok ? res.json() : Promise.reject(await res.text())))
@@ -70,7 +70,7 @@ export default function PaymentPage() {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        const res = await fetch("http://localhost:4000/api/profile/billing", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/billing`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
@@ -134,7 +134,7 @@ export default function PaymentPage() {
                 .split("T")[0];
 
             const token = localStorage.getItem("token");
-            const res = await fetch("http://localhost:4000/api/subscriptions", {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/subscriptions`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

@@ -2,7 +2,6 @@
 
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
-import { AnimatePresence, motion } from "framer-motion";
 
 export default function ContentBuilderLayout({ children }: { children: React.ReactNode }) {
   return (

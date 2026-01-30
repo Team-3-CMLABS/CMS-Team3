@@ -27,7 +27,7 @@ export default function ContentEditorPage() {
     useEffect(() => {
         const fetchContent = async () => {
             try {
-                const res = await fetch(`http://localhost:4000/api/content/${slug}`);
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/content/${slug}`);
                 const data = await res.json();
 
                 if (!res.ok || !data.model) {
@@ -104,7 +104,7 @@ export default function ContentEditorPage() {
                 }
             });
 
-            const res = await fetch(`http://localhost:4000/api/content/${slug}`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/content/${slug}`, {
                 method: "PUT",
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -138,7 +138,7 @@ export default function ContentEditorPage() {
         if (typeof item === "string") {
             return item.startsWith("blob:")
                 ? item
-                : `http://localhost:4000${item}`;
+                : `${process.env.NEXT_PUBLIC_API_URL}${item}`;
         }
 
         if (item instanceof File) {

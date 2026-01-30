@@ -47,7 +47,7 @@ export default function PageHome() {
       try {
         const token = localStorage.getItem("token");
 
-        const res = await fetch(`http://localhost:4000/api/content-builder/content/${slug}`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/content-builder/content/${slug}`, {
           headers: {
             "Authorization": `Bearer ${token}`,
           },
@@ -84,7 +84,7 @@ export default function PageHome() {
     try {
       const token = localStorage.getItem("token");
 
-      const res = await fetch("http://localhost:4000/api/content-builder/field", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/content-builder/field`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -122,7 +122,7 @@ export default function PageHome() {
       const field = fields[index];
       const token = localStorage.getItem("token");
 
-      await fetch(`http://localhost:4000/api/content-builder/field/${field.id}`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/content-builder/field/${field.id}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -289,7 +289,7 @@ export default function PageHome() {
             Swal.fire("Updated", "Field updated successfully!", "success");
             // refresh field list
             const token = localStorage.getItem("token");
-            fetch(`http://localhost:4000/api/content-builder/content/${slug}`, {
+            fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/content-builder/content/${slug}`, {
               headers: {
                 "Authorization": `Bearer ${token}`,
               }

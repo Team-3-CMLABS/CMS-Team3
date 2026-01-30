@@ -41,9 +41,9 @@ export default function PlanAndBillingPage() {
         const fetchBillingData = async () => {
             try {
                 const [subRes, payRes, usageRes] = await Promise.all([
-                    fetch(`http://localhost:4000/api/subscriptions/user/${userId}`),
-                    fetch(`http://localhost:4000/api/payments/user/${userId}`),
-                    fetch(`http://localhost:4000/api/subscriptions/usage/${userId}`),
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/subscriptions/user/${userId}`),
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payments/user/${userId}`),
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/subscriptions/usage/${userId}`),
                 ]);
 
                 if (!subRes.ok) throw new Error("Failed to fetch subscription");
@@ -73,7 +73,7 @@ export default function PlanAndBillingPage() {
     const handleCancelSubscription = async (userId: number) => {
         try {
             const res = await fetch(
-                `http://localhost:4000/api/subscriptions/cancel/user/${userId}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/api/subscriptions/cancel/user/${userId}`,
                 {
                     method: "POST",
                 }
@@ -150,7 +150,7 @@ export default function PlanAndBillingPage() {
                                                         if (subscription) {
                                                             try {
                                                                 await fetch(
-                                                                    `http://localhost:4000/api/subscriptions/${subscription.id}/auto-renew`,
+                                                                    `${process.env.NEXT_PUBLIC_API_URL}/api/subscriptions/${subscription.id}/auto-renew`,
                                                                     {
                                                                         method: "PUT",
                                                                         headers: { "Content-Type": "application/json" },

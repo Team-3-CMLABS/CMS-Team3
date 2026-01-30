@@ -7,7 +7,7 @@ export default function BillingAddress({ billingData, setBillingData }: any) {
     const token = localStorage.getItem("token");
     if (!token) return;
 
-    fetch("http://localhost:4000/api/profile", {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -39,7 +39,7 @@ export default function BillingAddress({ billingData, setBillingData }: any) {
     setBillingData(updatedData);
 
     try {
-      const res = await fetch("http://localhost:4000/api/profile/billing", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/billing`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

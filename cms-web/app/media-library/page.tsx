@@ -62,7 +62,7 @@ export default function MediaLibraryPage() {
     useEffect(() => {
         const fetchMedia = async () => {
             try {
-                const res = await fetch("http://localhost:4000/api/media", {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/media`, {
                     headers: {
                         Authorization: `Bearer ${token}`, 
                     },
@@ -75,7 +75,7 @@ export default function MediaLibraryPage() {
                     list.map((item: any) => ({
                         id: item.id,
                         filename: item.filename,
-                        url: `http://localhost:4000${item.url}`,
+                        url: `${process.env.NEXT_PUBLIC_API_URL}${item.url}`,
                         uploader: item.uploader || null,
                         content_slug: item.content_slug || null,
                         created_at: item.created_at,
@@ -106,7 +106,7 @@ export default function MediaLibraryPage() {
         if (!result.isConfirmed) return;
 
         try {
-            await fetch(`http://localhost:4000/api/media/${id}`, {
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/media/${id}`, {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${token}` },
             });

@@ -23,7 +23,7 @@ export default function PlanBuildingModal({
     const userId = localStorage.getItem("userId");
     if (!userId) return;
 
-    fetch(`http://localhost:4000/api/payments/check/${userId}`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payments/check/${userId}`)
       .then((res) => res.json())
       .then((data) => {
         if (data?.hasPayment) {
@@ -37,7 +37,7 @@ export default function PlanBuildingModal({
 
   // ✅ Ambil data plans dari backend
   useEffect(() => {
-    fetch("http://localhost:4000/api/plans")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/plans`)
       .then((res) => res.json())
       .then((data) => setPlans(data))
       .catch((err) => console.error("Gagal memuat data plan:", err));

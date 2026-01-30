@@ -27,7 +27,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:4000/api/login", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
@@ -212,7 +212,7 @@ export default function Login() {
           </div>
 
           <button
-            onClick={() => (window.location.href = "http://localhost:4000/api/auth/google")}
+            onClick={() => (window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google`)}
             disabled={loading}
             className="w-full border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
           >

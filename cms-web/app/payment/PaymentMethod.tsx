@@ -14,7 +14,7 @@ export default function PaymentMethod({
   useEffect(() => {
     const fetchMethods = async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/paymentMethods");
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/paymentMethods`);
         const data = await res.json();
         setPaymentOptions(data);
       } catch (err) {

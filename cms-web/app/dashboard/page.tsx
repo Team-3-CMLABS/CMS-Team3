@@ -52,12 +52,12 @@ export default function Dashboard() {
     const fetchDashboardData = async () => {
       try {
         const [contentRes, collabRes] = await Promise.all([
-          fetch("http://localhost:4000/api/content", {
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/content`, {
             headers: {
               Authorization: `Bearer ${token}`,
             },
           }),
-          fetch("http://localhost:4000/api/collaborators/all-users", {
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/collaborators/all-users`, {
             headers: {
               Authorization: `Bearer ${token}`,
             },

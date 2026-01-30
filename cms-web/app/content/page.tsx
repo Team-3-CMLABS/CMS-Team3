@@ -16,9 +16,36 @@ import Sidebar from "@/components/Sidebar";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
+declare global {
+  interface Window {
+    slideMedia?: (direction: number) => void;
+  }
+}
+
+type ContentItem = {
+  id: number;
+  slug: string;
+  model: string;
+  status: "published" | "draft";
+  editor_email?: string;
+};
+
+type Field = {
+  name: string;
+  type: string;
+};
+
+type LocationValue =
+  | string
+  | {
+    name?: string;
+    lat?: number;
+    lng?: number;
+  }
+  | null;
 
 export default function ContentPage() {
-  const [contents, setContents] = useState<any[]>([]);
+  const [contents, setContents] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
@@ -36,7 +63,7 @@ export default function ContentPage() {
         const token = localStorage.getItem("token");
         const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-        const res = await fetch("http://localhost:4000/api/content", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/content`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -59,7 +86,7 @@ export default function ContentPage() {
       try {
         const token = localStorage.getItem("token");
         const res = await fetch(
-          "http://localhost:4000/api/me/content-permission",
+          `${process.env.NEXT_PUBLIC_API_URL}/api/me/content-permission`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -90,9 +117,9 @@ export default function ContentPage() {
     );
   });
 
-  const handleDetail = async (item: any) => {
+  const handleDetail = async (item: ContentItem) => {
     try {
-      const res = await fetch(`http://localhost:4000/api/content/${item.slug}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/content/${item.slug}`);
       const data = await res.json();
 
       if (!data?.content) {
@@ -100,24 +127,27 @@ export default function ContentPage() {
         return;
       }
 
-      const { model, fields, content } = data;
+      const { model, content } = data;
+      const fields: Field[] = data.fields ?? [];
       const contentData = content?.raw ?? {};
       const status = content?.status ?? "draft";
 
       const resolveMediaUrl = (url: string) => {
         if (!url) return "";
         if (url.startsWith("http")) return url;
-        return `http://localhost:4000${url}`;
+        return `${process.env.NEXT_PUBLIC_API_URL}${url}`;
       };
 
       const getField = (name: string) =>
-        fields.find((f: any) => f.name === name);
+        fields.find((f: { name: string }) => f.name === name);
 
       const titleField = getField("title");
       const datetimeField = getField("datetime");
       const locationField = getField("location");
       const bodyField = getField("body");
-      const mediaFields = fields.filter((f: any) => f.type === "media");
+      const mediaFields = (fields as Field[]).filter(
+        (f) => f.type === "media"
+      );
 
       const title = titleField
         ? contentData[titleField.name]
@@ -143,10 +173,10 @@ export default function ContentPage() {
         const resolveMediaUrl = (url: string) => {
           if (!url) return "";
           if (url.startsWith("http")) return url;
-          return `http://localhost:4000${url}`;
+          return `${process.env.NEXT_PUBLIC_API_URL}${url}`;
         };
 
-        const extractUrl = (v: any): string[] => {
+        const extractUrl = (v: unknown): string[] => {
           if (!v) return [];
 
           // array
@@ -159,18 +189,25 @@ export default function ContentPage() {
             return [resolveMediaUrl(v)];
           }
 
-          // direct object
-          if (v.url) return [resolveMediaUrl(v.url)];
-          if (v.path) return [resolveMediaUrl(v.path)];
+          // object
+          if (typeof v === "object") {
+            const obj = v as Record<string, any>;
 
-          // nested file
-          if (v.file?.url) return [resolveMediaUrl(v.file.url)];
-          if (v.file?.path) return [resolveMediaUrl(v.file.path)];
+            if (typeof obj.url === "string") return [resolveMediaUrl(obj.url)];
+            if (typeof obj.path === "string") return [resolveMediaUrl(obj.path)];
+
+            // nested file
+            if (typeof obj.file?.url === "string")
+              return [resolveMediaUrl(obj.file.url)];
+
+            if (typeof obj.file?.path === "string")
+              return [resolveMediaUrl(obj.file.path)];
+          }
 
           return [];
         };
 
-        const allMediaUrls = mediaFields.flatMap((field: any) =>
+        const allMediaUrls = mediaFields.flatMap((field: Field) =>
           extractUrl(contentData[field.name])
         );
 
@@ -239,7 +276,7 @@ export default function ContentPage() {
 <div class="media-slider">
   ${allMediaUrls
             .map(
-              (url: any, i: number) => `
+              (url: string, i: number) => `
       <div class="media-slide ${i === 0 ? "active" : ""}">
         <img src="${url}" class="hero-image" />
       </div>
@@ -274,25 +311,24 @@ export default function ContentPage() {
       const statusLabel = status === "published" ? "PUBLISHED" : "DRAFT";
       const statusColor = status === "published" ? "#22c55e" : "#f97316";
 
-      const getMapsUrl = (location: any) => {
+      const getMapsUrl = (location: LocationValue) => {
         if (!location) return "";
 
-        // pakai koordinat (paling akurat)
+        // ✅ kalau string langsung
+        if (typeof location === "string") {
+          return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+            location
+          )}`;
+        }
+
+        // ✅ setelah ini TS tahu: location = object
         if (location.lat && location.lng) {
           return `https://www.google.com/maps?q=${location.lat},${location.lng}`;
         }
 
-        // pakai nama lokasi
         if (location.name) {
           return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
             location.name
-          )}`;
-        }
-
-        // kalau string langsung
-        if (typeof location === "string") {
-          return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-            location
           )}`;
         }
 
@@ -343,6 +379,9 @@ export default function ContentPage() {
         </a>
       `
           : "";
+
+      const modelName =
+        typeof model === "string" ? model : model?.name ?? "";
 
       Swal.fire({
         width: 1100,
@@ -408,7 +447,7 @@ export default function ContentPage() {
     font-weight:600;
     opacity:0.95;
   ">
-    ${typeof model === "string" ? model : model?.name}
+    ${modelName}
   </span>
 
 </div>
@@ -592,7 +631,7 @@ export default function ContentPage() {
           const indexText = document.getElementById("mediaIndex");
 
           // ⬇️ BIKIN GLOBAL (INI KUNCINYA)
-          (window as any).slideMedia = (direction: number) => {
+          window.slideMedia = (direction: number) => {
             if (!slides.length) return;
 
             slides[currentMedia].classList.remove("active");
@@ -613,7 +652,7 @@ export default function ContentPage() {
   };
 
   // 🔹 Delete
-  const handleDelete = async (item: any) => {
+  const handleDelete = async (item: ContentItem) => {
     const confirm = await Swal.fire({
       title: "Hapus Konten?",
       text: `Apakah kamu yakin ingin menghapus "${item.model}"?`,
@@ -629,7 +668,7 @@ export default function ContentPage() {
 
     try {
       const res = await fetch(
-        `http://localhost:4000/api/content-builder/model/${item.id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/content-builder/model/${item.id}`,
         { method: "DELETE" }
       );
       const data = await res.json();

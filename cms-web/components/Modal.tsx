@@ -34,7 +34,7 @@ export default function PageModal({
     try {
       const token = localStorage.getItem("token"); // ⬅️ Tambahkan ini
 
-      const res = await fetch("http://localhost:4000/api/content-builder/model", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/content-builder/model`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

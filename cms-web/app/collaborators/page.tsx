@@ -8,14 +8,30 @@ import { Filter, Trash2, PencilIcon, Search, X } from "lucide-react";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
+type Model = {
+    id: number;
+    name: string;
+};
+
+type Collaborator = {
+    id: number;
+    user_id: number;
+    name: string;
+    email: string;
+    role?: string;
+    posisi: string;
+    status: string;
+    models?: number[];
+};
+
 export default function CollaboratorsPage() {
-    const [collaborators, setCollaborators] = useState<any[]>([]);
-    const [models, setModels] = useState<any[]>([]);
+    const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+    const [models, setModels] = useState<Model[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [filterType, setFilterType] = useState("All");
     const [showModal, setShowModal] = useState(false);
-    const [selected, setSelected] = useState<any>(null);
+    const [selected, setSelected] = useState<Collaborator | null>(null);
 
     const statuses = ["Active", "Pending", "Nonaktif"];
     const posisies = ["Owner", "Collaborator"];
@@ -24,7 +40,7 @@ export default function CollaboratorsPage() {
     const fetchCollaborators = async () => {
         try {
             setLoading(true);
-            const res = await fetch("http://localhost:4000/api/collaborators/all-users");
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/collaborators/all-users`);
             const json = await res.json();
             setCollaborators(json.data || []);
         } catch (err) {
@@ -36,7 +52,7 @@ export default function CollaboratorsPage() {
 
     // ✅ Fetch Models untuk dropdown
     const fetchModels = async () => {
-        const res = await fetch("http://localhost:4000/api/collaborators/content-models");
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/collaborators/content-models`);
         const json = await res.json();
         setModels(json.data || []);
     };
@@ -57,13 +73,13 @@ export default function CollaboratorsPage() {
             confirmButtonColor: "#dc2626",
         });
         if (confirm.isConfirmed) {
-            await fetch(`http://localhost:4000/api/collaborators/${id}`, { method: "DELETE" });
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/collaborators/${id}`, { method: "DELETE" });
             Swal.fire("Terhapus!", "Collaborator telah dihapus.", "success");
             fetchCollaborators();
         }
     };
 
-    const handleEdit = (user: any) => {
+    const handleEdit = (user: Collaborator) => {
         setSelected({
             ...user,
             models: user.models?.map((m: any) => m.id) || [],
@@ -72,19 +88,18 @@ export default function CollaboratorsPage() {
     };
 
     const handleSaveEdit = async () => {
-        const isNew = !selected.id;
+        const isNew = !selected?.id;
 
         const url = isNew
-            ? "http://localhost:4000/api/collaborators"
-            : `http://localhost:4000/api/collaborators/${selected.id}`;
-
+            ? `${process.env.NEXT_PUBLIC_API_URL}/api/collaborators`
+            : `${process.env.NEXT_PUBLIC_API_URL}/api/collaborators/${selected?.id}`;
         const method = isNew ? "POST" : "PUT";
 
         const payload = {
-            user_id: selected.user_id,
-            posisi: selected.posisi,
-            status: selected.status,
-            model_ids: selected.models || [],
+            user_id: selected?.user_id,
+            posisi: selected?.posisi,
+            status: selected?.status,
+            model_ids: selected?.models || [],
         };
 
         const res = await fetch(url, {
@@ -227,8 +242,8 @@ export default function CollaboratorsPage() {
                                                             {c.role && (
                                                                 <span
                                                                     className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide ${c.role === "admin"
-                                                                            ? "bg-blue-100 text-blue-700"
-                                                                            : "bg-purple-100 text-purple-700"
+                                                                        ? "bg-blue-100 text-blue-700"
+                                                                        : "bg-purple-100 text-purple-700"
                                                                         }`}
                                                                 >
                                                                     {c.role}
@@ -243,14 +258,19 @@ export default function CollaboratorsPage() {
                                                 <td className="py-3 px-4 text-center">
                                                     {c.models && c.models.length > 0 ? (
                                                         <div className="flex flex-wrap justify-center gap-1">
-                                                            {c.models.map((p: any) => (
-                                                                <span
-                                                                    key={`model-${p.id}`}
-                                                                    className="inline-block bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-medium"
-                                                                >
-                                                                    {p.name}
-                                                                </span>
-                                                            ))}
+                                                            {c.models.map((id) => {
+                                                                const model = models.find((m) => m.id === id);
+                                                                if (!model) return null;
+
+                                                                return (
+                                                                    <span
+                                                                        key={`model-${id}`}
+                                                                        className="inline-block bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-medium"
+                                                                    >
+                                                                        {model.name}
+                                                                    </span>
+                                                                );
+                                                            })}
                                                         </div>
                                                     ) : (
                                                         <span className="text-gray-400 italic">Not Assigned</span>
@@ -331,9 +351,10 @@ export default function CollaboratorsPage() {
                                         <label className="text-sm font-medium text-slate-700 mb-1 block">Posisi</label>
                                         <select
                                             value={selected?.posisi || ""}
-                                            onChange={(e) =>
-                                                setSelected({ ...selected, posisi: e.target.value })
-                                            }
+                                            onChange={(e) => {
+                                                if (!selected) return;
+                                                setSelected({ ...selected, posisi: e.target.value });
+                                            }}
                                             className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
                                         >
                                             {posisies.map((r) => (
@@ -348,9 +369,10 @@ export default function CollaboratorsPage() {
                                         <label className="text-sm font-medium text-slate-700 mb-1 block">Status</label>
                                         <select
                                             value={selected?.status || ""}
-                                            onChange={(e) =>
-                                                setSelected({ ...selected, status: e.target.value })
-                                            }
+                                            onChange={(e) => {
+                                                if (!selected) return;
+                                                setSelected({ ...selected, status: e.target.value });
+                                            }}
                                             className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
                                         >
                                             {statuses.map((s) => (
@@ -377,9 +399,7 @@ export default function CollaboratorsPage() {
                                                             <input
                                                                 type="checkbox"
                                                                 checked={
-                                                                    selected?.models?.some(
-                                                                        (p: any) => p.id === proj.id || p === proj.id
-                                                                    ) || false
+                                                                    selected?.models?.includes(proj.id) || false
                                                                 }
                                                                 onChange={(e) => {
                                                                     const checked = e.target.checked;
@@ -387,6 +407,7 @@ export default function CollaboratorsPage() {
                                                                     const updated = checked
                                                                         ? [...current, proj.id]
                                                                         : current.filter((id: any) => id !== proj.id);
+                                                                    if (!selected) return;
                                                                     setSelected({ ...selected, models: updated });
                                                                 }}
                                                                 className="w-4 h-4 accent-blue-500 cursor-pointer"

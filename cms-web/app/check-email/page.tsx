@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { FiArrowLeft } from "react-icons/fi";
 import logo from "@/public/logo.png";
 import illustration from "@/public/illustration.png";
@@ -10,10 +10,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 
 export default function CheckEmail() {
   const searchParams = useSearchParams();
-  const router = useRouter();
-
   const email = searchParams.get("email") || "";
-  const token = searchParams.get("token") || "";
 
   return (
     <div className="min-h-screen flex">

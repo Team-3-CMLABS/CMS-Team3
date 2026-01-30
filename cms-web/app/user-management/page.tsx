@@ -10,7 +10,7 @@ import Swal from "sweetalert2";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-const API_URL = "http://localhost:4000/api/users";
+const API_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/users`;
 
 const Toast = Swal.mixin({
     toast: true,

@@ -57,7 +57,7 @@ export default function Topbar() {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        const res = await fetch("http://localhost:4000/api/profile", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -106,7 +106,7 @@ export default function Topbar() {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/notifications");
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`);
         const data = await res.json();
         setNotifications(data);
       } catch (err) {
@@ -133,7 +133,7 @@ export default function Topbar() {
       }
 
       // 🔍 Cek apakah user punya data payment
-      const paymentRes = await fetch(`http://localhost:4000/api/payments/check/${userId}`);
+      const paymentRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payments/check/${userId}`);
       const paymentData = await paymentRes.json();
 
       // Jika user belum pernah melakukan payment → tampilkan modal plan building
@@ -144,7 +144,7 @@ export default function Topbar() {
       }
 
       // 🔍 Jika sudah ada payment, lanjut cek subscription
-      const subRes = await fetch(`http://localhost:4000/api/subscriptions/check/${userId}`);
+      const subRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/subscriptions/check/${userId}`);
       const subData = await subRes.json();
 
       // Jika sudah punya subscription → langsung ke halaman plan-billing
@@ -235,7 +235,7 @@ export default function Topbar() {
                 </div>
                 <button
                   onClick={async () => {
-                    await fetch("http://localhost:4000/api/notifications", { method: "DELETE" });
+                    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, { method: "DELETE" });
                     setNotifications([]);
                   }}
                   className="text-xs text-slate-500 hover:text-red-600 font-medium transition"
@@ -308,7 +308,7 @@ export default function Topbar() {
                             e.stopPropagation();
                             const newStatus = !notif.read_status;
                             await fetch(
-                              `http://localhost:4000/api/notifications/${notif.id}/${newStatus ? "read" : "unread"}`,
+                              `${process.env.NEXT_PUBLIC_API_URL}/api/notifications/${notif.id}/${newStatus ? "read" : "unread"}`,
                               { method: "PUT" }
                             );
                             setNotifications((prev) =>
@@ -338,7 +338,7 @@ export default function Topbar() {
                           onClick={async (e) => {
                             e.stopPropagation();
                             await fetch(
-                              `http://localhost:4000/api/notifications/${notif.id}`,
+                              `${process.env.NEXT_PUBLIC_API_URL}/api/notifications/${notif.id}`,
                               { method: "DELETE" }
                             );
                             setNotifications((prev) =>
@@ -373,7 +373,7 @@ export default function Topbar() {
             <Image
               src={
                 user?.photo
-                  ? `http://localhost:4000/api${user.photo}`
+                  ? `${process.env.NEXT_PUBLIC_API_URL}${user.photo}`
                   : "/react.png"
               }
               alt="User Avatar"

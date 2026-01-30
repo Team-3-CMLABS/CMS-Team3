@@ -10,7 +10,7 @@ export default function EditFieldModal({ fieldId, onClose, onSave }: any) {
         if (!fieldId) return;
         const fetchField = async () => {
             try {
-                const res = await fetch(`http://localhost:4000/api/content-builder/field/${fieldId}`);
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/content-builder/field/${fieldId}`);
                 const data = await res.json();
                 if (res.ok) setFieldData(data.field);
                 else Swal.fire("Error", data.message || "Gagal memuat data field", "error");
@@ -25,7 +25,7 @@ export default function EditFieldModal({ fieldId, onClose, onSave }: any) {
         try {
             const token = localStorage.getItem("token");
 
-            const res = await fetch(`http://localhost:4000/api/content-builder/field/${fieldId}`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/content-builder/field/${fieldId}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",

@@ -44,7 +44,7 @@ export default function SettingsPanel({
 
     const fetchLatest = async () => {
       try {
-        const res = await fetch(`http://localhost:4000/api/content-builder/model/${field.id}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/content-builder/model/${field.id}`);
         const data = await res.json();
 
         if (data.model) {
@@ -82,7 +82,7 @@ export default function SettingsPanel({
       };
 
       const res = await fetch(
-        `http://localhost:4000/api/content-builder/model/${local.id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/content-builder/model/${local.id}`,
         {
           method: "PUT",
           headers: {

@@ -19,7 +19,7 @@ export default function SinglePageList() {
     try {
       const token = localStorage.getItem("token");
 
-      const res = await fetch("http://localhost:4000/api/content-builder", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/content-builder`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -51,7 +51,7 @@ export default function SinglePageList() {
 
       try {
         const res = await fetch(
-          "http://localhost:4000/api/me/content-permission",
+          `${process.env.NEXT_PUBLIC_API_URL}/api/me/content-permission`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -93,7 +93,7 @@ export default function SinglePageList() {
     if (!confirm.isConfirmed) return;
 
     try {
-      const res = await fetch(`http://localhost:4000/api/content-builder/model/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/content-builder/model/${id}`, {
         method: "DELETE",
       });
 

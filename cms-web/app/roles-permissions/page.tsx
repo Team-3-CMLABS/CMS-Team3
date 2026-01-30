@@ -18,7 +18,7 @@ export default function RolesPermissionsPage() {
   const fetchPendingUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:4000/api/admin/users/pending", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/pending`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -68,7 +68,7 @@ export default function RolesPermissionsPage() {
 
     try {
       const res = await fetch(
-        `http://localhost:4000/api/admin/users/${user.id_user}/approve`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${user.id_user}/approve`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

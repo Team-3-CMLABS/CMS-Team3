@@ -55,7 +55,7 @@ export default function Sidebar() {
       )}
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 p-4 border-b border-slate-100">
+      <div className="flex items-center gap-3 p-4 border-b border-slate-100"> 
         <Image src="/logo.png" alt="Logo" width={36} height={36} />
         <h1 className="font-semibold text-slate-800 text-lg">CMS Web Vokasi</h1>
       </div>
