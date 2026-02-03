@@ -147,19 +147,16 @@ export default function PlanBuildingModal({
 
                         {plan.features && (
                           <ul className="space-y-2 mb-8">
-                            {Array.isArray(plan.features)
-                              ? plan.features.map((f, i) => (
-                                <li key={i} className="flex items-start text-sm text-gray-700">
-                                  <span className="text-blue-500 mr-2">✔</span>
-                                  <span>{f}</span>
-                                </li>
-                              ))
-                              : JSON.parse(plan.features).map((f: string, i: number) => (
-                                <li key={i} className="flex items-start text-sm text-gray-700">
-                                  <span className="text-blue-500 mr-2">✔</span>
-                                  <span>{f}</span>
-                                </li>
-                              ))}
+                            {Object.values(
+                              typeof plan.features === "string"
+                                ? JSON.parse(plan.features)
+                                : plan.features
+                            ).map((f, i) => (
+                              <li key={i} className="flex items-start text-sm text-gray-700">
+                                <span className="text-blue-500 mr-2">✔</span>
+                                <span>{String(f)}</span>
+                              </li>
+                            ))}
                           </ul>
                         )}
                       </div>
